@@ -1,0 +1,96 @@
+{
+  "accounts": [],
+  "connections": [],
+  "messages": [
+    {
+      "id": "msg_seed_1",
+      "threadId": "thread_seed_1",
+      "subject": "Q2 hiring plan review",
+      "from": "alex@acme.co",
+      "to": [
+        "you@example.com"
+      ],
+      "snippet": "Can you confirm the hiring plan before Thursday's meeting?",
+      "bodyPreview": "We need a fast call on engineering headcount. Please send your updated recommendation and any open risks.",
+      "receivedAt": "2026-03-03T02:27:39.557Z",
+      "isUnread": true,
+      "labels": [
+        "important",
+        "work"
+      ]
+    },
+    {
+      "id": "msg_seed_2",
+      "threadId": "thread_seed_1",
+      "subject": "Re: Q2 hiring plan review",
+      "from": "you@example.com",
+      "to": [
+        "alex@acme.co"
+      ],
+      "snippet": "I can send the updated plan this afternoon.",
+      "bodyPreview": "I am tightening the hiring plan and will send the updated recommendation, including tradeoffs, later today.",
+      "receivedAt": "2026-03-03T01:27:39.557Z",
+      "isUnread": false,
+      "labels": [
+        "sent"
+      ]
+    },
+    {
+      "id": "msg_seed_3",
+      "threadId": "thread_seed_2",
+      "subject": "Customer renewal contract",
+      "from": "finance@northstar.io",
+      "to": [
+        "you@example.com"
+      ],
+      "snippet": "Waiting on legal approval before we can sign.",
+      "bodyPreview": "We are aligned on pricing, but legal still needs to review the revised language. We expect to have an update next week.",
+      "receivedAt": "2026-03-02T09:57:39.557Z",
+      "isUnread": false,
+      "labels": [
+        "finance"
+      ]
+    }
+  ],
+  "reminders": [
+    {
+      "id": "reminder_seed_1",
+      "threadId": "thread_seed_2",
+      "dueAt": "2026-03-06T03:57:39.557Z",
+      "reason": "Follow up if legal has not responded",
+      "completed": false
+    }
+  ],
+  "subscriptions": [],
+  "threads": [
+    {
+      "id": "thread_seed_1",
+      "subject": "Q2 hiring plan review",
+      "participants": [
+        "alex@acme.co",
+        "you@example.com"
+      ],
+      "messageIds": [
+        "msg_seed_2",
+        "msg_seed_1"
+      ],
+      "lastMessageAt": "2026-03-03T02:27:39.557Z",
+      "status": "needs_reply"
+    },
+    {
+      "id": "thread_seed_2",
+      "subject": "Customer renewal contract",
+      "participants": [
+        "finance@northstar.io",
+        "you@example.com"
+      ],
+      "messageIds": [
+        "msg_seed_3"
+      ],
+      "lastMessageAt": "2026-03-02T09:57:39.557Z",
+      "status": "waiting_on",
+      "waitingOn": "Legal approval from Northstar"
+    }
+  ],
+  "webhookEvents": []
+}

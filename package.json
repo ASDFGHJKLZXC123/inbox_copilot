@@ -12,15 +12,20 @@
     "test:unit": "vitest run lib",
     "test:api": "vitest run tests/api --passWithNoTests",
     "test:contrast": "playwright test --config=tests/contrast/playwright.config.ts",
-    "test:contrast:ci": "concurrently --kill-others --success first \"next dev\" \"wait-on http://localhost:3000 && npm run test:contrast\""
+    "test:contrast:ci": "concurrently --kill-others --success first \"next dev\" \"wait-on http://localhost:3000 && npm run test:contrast\"",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",
     "@phosphor-icons/react": "^2.1.10",
+    "drizzle-orm": "^0.36.4",
     "jose": "^5.10.0",
     "next": "^15.5.12",
     "next-auth": "^5.0.0-beta.25",
     "pino": "^9.14.0",
+    "postgres": "^3.4.9",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "zod": "^3.24.0"
@@ -28,11 +33,13 @@
   "devDependencies": {
     "@playwright/test": "^1.59.1",
     "@types/node": "22.13.10",
+    "@types/pg": "^8.20.0",
     "@types/react": "19.0.10",
     "@types/react-dom": "19.0.4",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.5.0",
     "concurrently": "^9.2.1",
+    "drizzle-kit": "^0.28.1",
     "msw": "^2.14.2",
     "pino-pretty": "^11.3.0",
     "postcss": "^8.5.9",

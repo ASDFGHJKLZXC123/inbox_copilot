@@ -1,19 +1,42 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import { decryptToken, encryptToken } from "@/lib/crypto";
+import { logger } from "@/lib/logger";
 import {
   InboxStore,
   Message,
   OAuthConnection,
   ProviderSubscription,
   Reminder,
+  SanitizedInboxStore,
   Thread,
   UserAccount,
   WebhookEvent
 } from "@/lib/types";
 
-const DATA_DIR = path.join(process.cwd(), ".data");
+const DATA_DIR = process.env.DATA_DIR ?? path.join(process.cwd(), ".data");
 const STORE_PATH = path.join(DATA_DIR, "inbox.json");
+
+// Serializes all mutations to prevent read-modify-write races
+let writeQueue: Promise<void> = Promise.resolve();
+
+async function atomicUpdate(updater: (store: InboxStore) => InboxStore | Promise<InboxStore>): Promise<InboxStore> {
+  return new Promise<InboxStore>((resolve, reject) => {
+    writeQueue = writeQueue.then(async () => {
+      try {
+        const current = await readStoreFromDisk();
+        const next = await updater(current);
+        await writeStoreToDisk(next);
+        resolve(next);
+      } catch (err) {
+        reject(err);
+      }
+    }).catch((err) => {
+      logger.error({ err }, "inbox write queue error");
+    });
+  });
+}
 
 const seedStore: InboxStore = {
   accounts: [],
@@ -113,6 +136,28 @@ function normalizeStore(store: Partial<InboxStore>): InboxStore {
   };
 }
 
+function decryptConnection(connection: OAuthConnection): OAuthConnection {
+  if (!connection.accessToken && !connection.refreshToken) {
+    return connection;
+  }
+  return {
+    ...connection,
+    accessToken: connection.accessToken ? decryptToken(connection.accessToken) : connection.accessToken,
+    refreshToken: connection.refreshToken ? decryptToken(connection.refreshToken) : connection.refreshToken
+  };
+}
+
+function encryptConnection(connection: OAuthConnection): OAuthConnection {
+  if (!connection.accessToken && !connection.refreshToken) {
+    return connection;
+  }
+  return {
+    ...connection,
+    accessToken: connection.accessToken ? encryptToken(connection.accessToken) : connection.accessToken,
+    refreshToken: connection.refreshToken ? encryptToken(connection.refreshToken) : connection.refreshToken
+  };
+}
+
 async function ensureStore(): Promise<void> {
   await mkdir(DATA_DIR, { recursive: true });
 
@@ -123,15 +168,32 @@ async function ensureStore(): Promise<void> {
   }
 }
 
-export async function getStore(): Promise<InboxStore> {
+async function readStoreFromDisk(): Promise<InboxStore> {
   await ensureStore();
   const raw = await readFile(STORE_PATH, "utf8");
-  return normalizeStore(JSON.parse(raw) as Partial<InboxStore>);
+  const parsed = normalizeStore(JSON.parse(raw) as Partial<InboxStore>);
+  return {
+    ...parsed,
+    connections: parsed.connections.map(decryptConnection)
+  };
+}
+
+async function writeStoreToDisk(store: InboxStore): Promise<void> {
+  await ensureStore();
+  const normalized = normalizeStore(store);
+  const onDisk: InboxStore = {
+    ...normalized,
+    connections: normalized.connections.map(encryptConnection)
+  };
+  await writeFile(STORE_PATH, JSON.stringify(onDisk, null, 2), "utf8");
+}
+
+export async function getStore(): Promise<InboxStore> {
+  return readStoreFromDisk();
 }
 
 export async function saveStore(store: InboxStore): Promise<void> {
-  await ensureStore();
-  await writeFile(STORE_PATH, JSON.stringify(normalizeStore(store), null, 2), "utf8");
+  return writeStoreToDisk(store);
 }
 
 export async function clearStore(): Promise<InboxStore> {
@@ -139,14 +201,10 @@ export async function clearStore(): Promise<InboxStore> {
   return emptyStore;
 }
 
-export function sanitizeStore(store: InboxStore): InboxStore {
+export function sanitizeStore(store: InboxStore): SanitizedInboxStore {
   return {
     ...store,
-    connections: store.connections.map((connection) => ({
-      ...connection,
-      accessToken: undefined,
-      refreshToken: undefined
-    }))
+    connections: store.connections.map(({ accessToken: _a, refreshToken: _r, ...rest }) => rest)
   };
 }
 
@@ -184,61 +242,54 @@ export async function upsertSyncedInbox(input: {
   threads: Thread[];
   messages: Message[];
 }): Promise<InboxStore> {
-  const store = await getStore();
-  const accounts = [...store.accounts];
-  const accountIndex = accounts.findIndex(
-    (account) => account.email === input.account.email && account.provider === input.account.provider
-  );
+  return atomicUpdate((store) => {
+    const accounts = [...store.accounts];
+    const accountIndex = accounts.findIndex(
+      (account) => account.email === input.account.email && account.provider === input.account.provider
+    );
 
-  if (accountIndex >= 0) {
-    accounts[accountIndex] = { ...accounts[accountIndex], ...input.account };
-  } else {
-    accounts.push(input.account);
-  }
+    if (accountIndex >= 0) {
+      accounts[accountIndex] = { ...accounts[accountIndex], ...input.account };
+    } else {
+      accounts.push(input.account);
+    }
 
-  const messageMap = new Map(store.messages.map((message) => [message.id, message]));
-  for (const message of input.messages) {
-    messageMap.set(message.id, mergeMessage(messageMap.get(message.id), message));
-  }
+    const messageMap = new Map(store.messages.map((message) => [message.id, message]));
+    for (const message of input.messages) {
+      messageMap.set(message.id, mergeMessage(messageMap.get(message.id), message));
+    }
 
-  const threadMap = new Map(store.threads.map((thread) => [thread.id, thread]));
-  for (const thread of input.threads) {
-    threadMap.set(thread.id, mergeThread(threadMap.get(thread.id), thread));
-  }
+    const threadMap = new Map(store.threads.map((thread) => [thread.id, thread]));
+    for (const thread of input.threads) {
+      threadMap.set(thread.id, mergeThread(threadMap.get(thread.id), thread));
+    }
 
-  const nextStore: InboxStore = {
-    ...store,
-    accounts,
-    messages: Array.from(messageMap.values()).sort((a, b) => b.receivedAt.localeCompare(a.receivedAt)),
-    threads: Array.from(threadMap.values()).sort((a, b) => b.lastMessageAt.localeCompare(a.lastMessageAt))
-  };
-
-  await saveStore(nextStore);
-  return nextStore;
+    return {
+      ...store,
+      accounts,
+      messages: Array.from(messageMap.values()).sort((a, b) => b.receivedAt.localeCompare(a.receivedAt)),
+      threads: Array.from(threadMap.values()).sort((a, b) => b.lastMessageAt.localeCompare(a.lastMessageAt))
+    };
+  });
 }
 
 export async function addReminder(reminder: Reminder): Promise<InboxStore> {
-  const store = await getStore();
-  const nextStore: InboxStore = {
+  return atomicUpdate((store) => ({
     ...store,
     reminders: [reminder, ...store.reminders]
-  };
-  await saveStore(nextStore);
-  return nextStore;
+  }));
 }
 
 export async function upsertConnection(connection: OAuthConnection): Promise<InboxStore> {
-  const store = await getStore();
-  const connectionMap = new Map(store.connections.map((item) => [item.id, item]));
-  connectionMap.set(connection.id, mergeConnection(connectionMap.get(connection.id), connection));
+  return atomicUpdate((store) => {
+    const connectionMap = new Map(store.connections.map((item) => [item.id, item]));
+    connectionMap.set(connection.id, mergeConnection(connectionMap.get(connection.id), connection));
 
-  const nextStore: InboxStore = {
-    ...store,
-    connections: Array.from(connectionMap.values()).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-  };
-
-  await saveStore(nextStore);
-  return nextStore;
+    return {
+      ...store,
+      connections: Array.from(connectionMap.values()).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    };
+  });
 }
 
 export async function getConnection(input: {
@@ -266,17 +317,15 @@ export async function listConnections(): Promise<OAuthConnection[]> {
 }
 
 export async function upsertSubscription(subscription: ProviderSubscription): Promise<InboxStore> {
-  const store = await getStore();
-  const subscriptionMap = new Map(store.subscriptions.map((item) => [item.id, item]));
-  subscriptionMap.set(subscription.id, mergeSubscription(subscriptionMap.get(subscription.id), subscription));
+  return atomicUpdate((store) => {
+    const subscriptionMap = new Map(store.subscriptions.map((item) => [item.id, item]));
+    subscriptionMap.set(subscription.id, mergeSubscription(subscriptionMap.get(subscription.id), subscription));
 
-  const nextStore: InboxStore = {
-    ...store,
-    subscriptions: Array.from(subscriptionMap.values()).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-  };
-
-  await saveStore(nextStore);
-  return nextStore;
+    return {
+      ...store,
+      subscriptions: Array.from(subscriptionMap.values()).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    };
+  });
 }
 
 export async function listSubscriptions(): Promise<ProviderSubscription[]> {
@@ -294,13 +343,79 @@ export async function getSubscriptionByExternalId(
   );
 }
 
+export async function updateThreadStatus(
+  threadId: string,
+  status: Thread["status"],
+  waitingOn?: string
+): Promise<InboxStore> {
+  return atomicUpdate((store) => {
+    const threads = store.threads.map((thread) => {
+      if (thread.id !== threadId) return thread;
+      const updated: Thread = { ...thread, status };
+      if (status === "waiting_on" && waitingOn !== undefined) {
+        updated.waitingOn = waitingOn;
+      } else if (status !== "waiting_on") {
+        delete updated.waitingOn;
+      }
+      return updated;
+    });
+    return { ...store, threads };
+  });
+}
+
+export async function deleteReminder(id: string): Promise<InboxStore> {
+  return atomicUpdate((store) => ({
+    ...store,
+    reminders: store.reminders.filter((reminder) => reminder.id !== id)
+  }));
+}
+
+export async function updateReminder(
+  id: string,
+  patch: Partial<Pick<Reminder, "completed">>
+): Promise<InboxStore> {
+  return atomicUpdate((store) => ({
+    ...store,
+    reminders: store.reminders.map((reminder) =>
+      reminder.id === id ? { ...reminder, ...patch } : reminder
+    )
+  }));
+}
+
 export async function addWebhookEvent(event: WebhookEvent): Promise<InboxStore> {
-  const store = await getStore();
-  const nextStore: InboxStore = {
+  return atomicUpdate((store) => ({
     ...store,
     webhookEvents: [event, ...store.webhookEvents].slice(0, 100)
-  };
+  }));
+}
 
-  await saveStore(nextStore);
-  return nextStore;
+export function searchThreads(store: InboxStore, query: string): Array<{
+  thread: Thread;
+  score: number;
+}> {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) {
+    return [];
+  }
+
+  return store.threads
+    .map((thread) => {
+      const messages = store.messages.filter((message) => message.threadId === thread.id);
+      const haystack = [
+        thread.subject,
+        thread.participants.join(" "),
+        thread.waitingOn ?? "",
+        messages.map((message) => `${message.subject} ${message.snippet} ${message.bodyPreview}`).join(" ")
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      const score = haystack.includes(normalized)
+        ? normalized.split(/\s+/).reduce((total, term) => total + (haystack.includes(term) ? 1 : 0), 0)
+        : 0;
+
+      return { thread, score };
+    })
+    .filter((result) => result.score > 0)
+    .sort((a, b) => b.score - a.score || b.thread.lastMessageAt.localeCompare(a.thread.lastMessageAt));
 }

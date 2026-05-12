@@ -30,6 +30,7 @@ export interface ProviderSubscription {
   externalId?: string;
   resourceId?: string;
   notificationUrl: string;
+  clientState?: string;
   status: "active" | "expired" | "error";
   expiresAt?: string;
   createdAt: string;
@@ -45,6 +46,12 @@ export interface WebhookEvent {
   note?: string;
 }
 
+export interface MessageAttachment {
+  filename: string;
+  mimeType: string;
+  size: number;
+}
+
 export interface Message {
   id: string;
   threadId: string;
@@ -53,6 +60,9 @@ export interface Message {
   to: string[];
   snippet: string;
   bodyPreview: string;
+  bodyHtml?: string;
+  bodyText?: string;
+  attachments?: MessageAttachment[];
   receivedAt: string;
   isUnread: boolean;
   labels: string[];
@@ -94,8 +104,12 @@ export interface ThreadSummary {
 
 export interface CopilotMeta {
   model?: string;
-  source: "gemini" | "fallback";
+  source: "gemini" | "claude" | "fallback";
 }
+
+export type SanitizedInboxStore = Omit<InboxStore, "connections"> & {
+  connections: Omit<OAuthConnection, "accessToken" | "refreshToken">[];
+};
 
 export interface ThreadSummaryResult {
   meta: CopilotMeta;

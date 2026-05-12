@@ -2,8 +2,14 @@
 module.exports = {
   content: [
     "./app/inbox/**/*.{js,ts,jsx,tsx}",
+    "./app/preferences/**/*.{js,ts,jsx,tsx}",
+    "./app/signin/**/*.{js,ts,jsx,tsx}",
     "./components/inbox/**/*.{js,ts,jsx,tsx}",
+    "./components/preferences/**/*.{js,ts,jsx,tsx}",
+    "./components/signin/**/*.{js,ts,jsx,tsx}",
+    "./components/ui/**/*.{js,ts,jsx,tsx}",
   ],
+  safelist: ["bg-emerald-400", "bg-sky-400", "bg-amber-400", "bg-slate-500"],
   // Disable preflight so existing dashboard styles are not reset
   corePlugins: {
     preflight: false,
@@ -11,9 +17,15 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Inter", "sans-serif"],
+        sans: ["Geist", "ui-sans-serif", "sans-serif"],
+        mono: ["Geist Mono", "ui-monospace", "monospace"],
       },
       colors: {
+        accent: {
+          DEFAULT: "#7dd3fc",
+          500: "#0ea5e9",
+          600: "#0284c7",
+        },
         brand: {
           50: "#f0f9ff",
           100: "#e0f2fe",

@@ -1,3 +1,5 @@
+import Anthropic from "@anthropic-ai/sdk";
+
 import {
   DraftOptions,
   DraftReply,
@@ -138,6 +140,8 @@ function threadContext(thread: Thread, messages: Message[]): string {
     .join("\n");
 }
 
+// ─── Provider detection ────────────────────────────────────────────────────
+
 function geminiModel(): string {
   return process.env.GEMINI_MODEL || "gemini-2.5-flash";
 }
@@ -145,6 +149,16 @@ function geminiModel(): string {
 function geminiEnabled(): boolean {
   return Boolean(process.env.GEMINI_API_KEY);
 }
+
+function claudeEnabled(): boolean {
+  return Boolean(process.env.ANTHROPIC_API_KEY);
+}
+
+function claudeModel(): string {
+  return process.env.ANTHROPIC_MODEL || "claude-haiku-4-5-20251001";
+}
+
+// ─── JSON parsing helpers ──────────────────────────────────────────────────
 
 function parseJsonBlock<T>(raw: string): T | null {
   const trimmed = raw.trim();
@@ -157,6 +171,8 @@ function parseJsonBlock<T>(raw: string): T | null {
     return null;
   }
 }
+
+// ─── Gemini ────────────────────────────────────────────────────────────────
 
 function extractGeminiText(payload: unknown): string {
   const data = payload as {
@@ -194,15 +210,7 @@ async function generateWithGemini(prompt: string): Promise<string> {
         "x-goog-api-key": apiKey
       },
       body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: prompt
-              }
-            ]
-          }
-        ]
+        contents: [{ parts: [{ text: prompt }] }]
       }),
       cache: "no-store"
     }
@@ -211,133 +219,185 @@ async function generateWithGemini(prompt: string): Promise<string> {
   const payload = (await response.json()) as unknown;
 
   if (!response.ok) {
-    const message = JSON.stringify(payload);
-    throw new Error(`Gemini request failed (${response.status}): ${message}`);
+    throw new Error(`Gemini request failed (${response.status}): ${JSON.stringify(payload)}`);
   }
 
   const text = extractGeminiText(payload);
-
-  if (!text) {
-    throw new Error("Gemini returned an empty response");
-  }
+  if (!text) throw new Error("Gemini returned an empty response");
 
   return text;
 }
 
-export async function summarizeThread(thread: Thread, messages: Message[]): Promise<ThreadSummaryResult> {
-  if (!geminiEnabled()) {
-    return {
-      meta: {
-        source: "fallback"
-      },
-      summary: heuristicSummary(thread, messages)
-    };
+// ─── Claude ────────────────────────────────────────────────────────────────
+
+async function generateWithClaude(systemPrompt: string, userContent: string): Promise<string> {
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+  const response = await client.messages.create({
+    model: claudeModel(),
+    max_tokens: 1024,
+    system: [
+      {
+        type: "text",
+        text: systemPrompt,
+        cache_control: { type: "ephemeral" }
+      }
+    ],
+    messages: [{ role: "user", content: userContent }]
+  });
+
+  const block = response.content[0];
+  if (block?.type !== "text" || !block.text) {
+    throw new Error("Claude returned an empty response");
   }
 
-  const prompt = [
-    "You are an AI inbox copilot. Read the email thread context and return only valid JSON.",
-    'JSON schema: {"headline": string, "action": string, "bullets": string[]}',
-    "Requirements:",
-    "- Keep the headline short and concrete.",
-    "- Make the action specific and actionable.",
-    "- Return exactly 3 bullets.",
-    "- Do not include markdown or code fences unless absolutely necessary.",
-    "",
-    threadContext(thread, messages)
-  ].join("\n");
+  return block.text;
+}
 
-  try {
-    const raw = await generateWithGemini(prompt);
-    const parsed = parseJsonBlock<ThreadSummary>(raw);
+// ─── Summarize thread ──────────────────────────────────────────────────────
 
-    if (parsed?.headline && parsed?.action && Array.isArray(parsed.bullets)) {
-      return {
-        meta: {
-          model: geminiModel(),
-          source: "gemini"
-        },
-        summary: {
-          headline: parsed.headline,
-          action: parsed.action,
-          bullets: parsed.bullets.slice(0, 3)
-        }
-      };
+export async function summarizeThread(thread: Thread, messages: Message[]): Promise<ThreadSummaryResult> {
+  const context = threadContext(thread, messages);
+
+  if (claudeEnabled()) {
+    const systemPrompt = [
+      "You are an AI inbox copilot. Read the email thread context and return only valid JSON.",
+      'JSON schema: {"headline": string, "action": string, "bullets": string[]}',
+      "Requirements:",
+      "- Keep the headline short and concrete.",
+      "- Make the action specific and actionable.",
+      "- Return exactly 3 bullets.",
+      "- Do not include markdown or code fences."
+    ].join("\n");
+
+    try {
+      const raw = await generateWithClaude(systemPrompt, context);
+      const parsed = parseJsonBlock<ThreadSummary>(raw);
+
+      if (parsed?.headline && parsed?.action && Array.isArray(parsed.bullets)) {
+        return {
+          meta: { model: claudeModel(), source: "claude" },
+          summary: { headline: parsed.headline, action: parsed.action, bullets: parsed.bullets.slice(0, 3) }
+        };
+      }
+    } catch {
+      // Fall through to Gemini or heuristics
     }
-  } catch {
-    // Fall back to heuristics if Gemini is unavailable or returns malformed output.
+  }
+
+  if (geminiEnabled()) {
+    const prompt = [
+      "You are an AI inbox copilot. Read the email thread context and return only valid JSON.",
+      'JSON schema: {"headline": string, "action": string, "bullets": string[]}',
+      "Requirements:",
+      "- Keep the headline short and concrete.",
+      "- Make the action specific and actionable.",
+      "- Return exactly 3 bullets.",
+      "- Do not include markdown or code fences unless absolutely necessary.",
+      "",
+      context
+    ].join("\n");
+
+    try {
+      const raw = await generateWithGemini(prompt);
+      const parsed = parseJsonBlock<ThreadSummary>(raw);
+
+      if (parsed?.headline && parsed?.action && Array.isArray(parsed.bullets)) {
+        return {
+          meta: { model: geminiModel(), source: "gemini" },
+          summary: { headline: parsed.headline, action: parsed.action, bullets: parsed.bullets.slice(0, 3) }
+        };
+      }
+    } catch {
+      // Fall through to heuristics
+    }
   }
 
   return {
-    meta: {
-      source: "fallback"
-    },
+    meta: { source: "fallback" },
     summary: heuristicSummary(thread, messages)
   };
 }
+
+// ─── Draft reply ───────────────────────────────────────────────────────────
 
 export async function draftReply(
   thread: Thread,
   messages: Message[],
   options: DraftOptions
 ): Promise<DraftReplyResult> {
-  if (!geminiEnabled()) {
-    return {
-      draft: heuristicDraft(thread, messages, options),
-      meta: {
-        source: "fallback"
-      }
-    };
-  }
-
+  const context = threadContext(thread, messages);
   const toneGuidance: Record<DraftOptions["tone"], string> = {
     concise: "Keep it tight, direct, and efficient. Prefer short paragraphs and minimal pleasantries.",
     friendly: "Sound warm, collaborative, and human. Use natural phrasing and mild warmth.",
     formal: "Sound polished, precise, and professional. Use more structured business language."
   };
 
-  const prompt = [
-    "You are an AI inbox copilot drafting an email reply.",
-    "Return only valid JSON.",
-    'JSON schema: {"subject": string, "body": string}',
-    "Requirements:",
+  const requirements = [
     `- Tone: ${options.tone}. ${toneGuidance[options.tone]}`,
     `- Ask a clarifying question: ${options.askClarifyingQuestion ? "yes" : "no"}.`,
     "- Write a realistic reply email, not analysis.",
     "- The body should be ready to paste into an email client.",
     "- Include a greeting and sign-off.",
     "- If clarification is requested, include exactly one concrete clarifying question near the end.",
-    "- Do not include markdown or code fences unless absolutely necessary.",
-    "",
-    threadContext(thread, messages)
+    "- Do not include markdown or code fences unless absolutely necessary."
   ].join("\n");
 
-  try {
-    const raw = await generateWithGemini(prompt);
-    const parsed = parseJsonBlock<DraftReply>(raw);
+  if (claudeEnabled()) {
+    const systemPrompt = [
+      "You are an AI inbox copilot drafting an email reply. Return only valid JSON.",
+      'JSON schema: {"subject": string, "body": string}',
+      "Requirements:",
+      requirements
+    ].join("\n");
 
-    if (parsed?.subject && parsed?.body) {
-      return {
-        draft: {
-          subject: parsed.subject,
-          body: parsed.body
-        },
-        meta: {
-          model: geminiModel(),
-          source: "gemini"
-        }
-      };
+    try {
+      const raw = await generateWithClaude(systemPrompt, context);
+      const parsed = parseJsonBlock<DraftReply>(raw);
+
+      if (parsed?.subject && parsed?.body) {
+        return {
+          draft: { subject: parsed.subject, body: parsed.body },
+          meta: { model: claudeModel(), source: "claude" }
+        };
+      }
+    } catch {
+      // Fall through
     }
-  } catch {
-    // Fall back to heuristics if Gemini is unavailable or returns malformed output.
+  }
+
+  if (geminiEnabled()) {
+    const prompt = [
+      "You are an AI inbox copilot drafting an email reply. Return only valid JSON.",
+      'JSON schema: {"subject": string, "body": string}',
+      "Requirements:",
+      requirements,
+      "",
+      context
+    ].join("\n");
+
+    try {
+      const raw = await generateWithGemini(prompt);
+      const parsed = parseJsonBlock<DraftReply>(raw);
+
+      if (parsed?.subject && parsed?.body) {
+        return {
+          draft: { subject: parsed.subject, body: parsed.body },
+          meta: { model: geminiModel(), source: "gemini" }
+        };
+      }
+    } catch {
+      // Fall through
+    }
   }
 
   return {
     draft: heuristicDraft(thread, messages, options),
-    meta: {
-      source: "fallback"
-    }
+    meta: { source: "fallback" }
   };
 }
+
+// ─── Revise draft ──────────────────────────────────────────────────────────
 
 export async function reviseDraft(
   thread: Thread,
@@ -345,29 +405,8 @@ export async function reviseDraft(
   currentDraft: DraftReply,
   instruction: string
 ): Promise<DraftReplyResult> {
-  if (!geminiEnabled()) {
-    return {
-      draft: heuristicReviseDraft(currentDraft, instruction),
-      meta: {
-        source: "fallback"
-      }
-    };
-  }
-
-  const prompt = [
-    "You are an AI inbox copilot revising an email draft.",
-    "Return only valid JSON.",
-    'JSON schema: {"subject": string, "body": string}',
-    "Requirements:",
-    "- Apply the user's requested edit to the existing draft.",
-    "- Preserve the core intent unless the instruction explicitly changes it.",
-    "- Return a polished email draft ready to send.",
-    "- Do not include analysis or commentary.",
-    "- Do not include markdown or code fences unless absolutely necessary.",
-    "",
-    "Thread context:",
-    threadContext(thread, messages),
-    "",
+  const context = threadContext(thread, messages);
+  const draftBlock = [
     "Current draft subject:",
     currentDraft.subject,
     "",
@@ -378,61 +417,70 @@ export async function reviseDraft(
     instruction
   ].join("\n");
 
-  try {
-    const raw = await generateWithGemini(prompt);
-    const parsed = parseJsonBlock<DraftReply>(raw);
+  if (claudeEnabled()) {
+    const systemPrompt = [
+      "You are an AI inbox copilot revising an email draft. Return only valid JSON.",
+      'JSON schema: {"subject": string, "body": string}',
+      "Requirements:",
+      "- Apply the user's requested edit to the existing draft.",
+      "- Preserve the core intent unless the instruction explicitly changes it.",
+      "- Return a polished email draft ready to send.",
+      "- Do not include analysis or commentary.",
+      "- Do not include markdown or code fences unless absolutely necessary.",
+      "",
+      "Thread context:",
+      context
+    ].join("\n");
 
-    if (parsed?.subject && parsed?.body) {
-      return {
-        draft: {
-          subject: parsed.subject,
-          body: parsed.body
-        },
-        meta: {
-          model: geminiModel(),
-          source: "gemini"
-        }
-      };
+    try {
+      const raw = await generateWithClaude(systemPrompt, draftBlock);
+      const parsed = parseJsonBlock<DraftReply>(raw);
+
+      if (parsed?.subject && parsed?.body) {
+        return {
+          draft: { subject: parsed.subject, body: parsed.body },
+          meta: { model: claudeModel(), source: "claude" }
+        };
+      }
+    } catch {
+      // Fall through
     }
-  } catch {
-    // Fall back to heuristics if Gemini is unavailable or returns malformed output.
+  }
+
+  if (geminiEnabled()) {
+    const prompt = [
+      "You are an AI inbox copilot revising an email draft. Return only valid JSON.",
+      'JSON schema: {"subject": string, "body": string}',
+      "Requirements:",
+      "- Apply the user's requested edit to the existing draft.",
+      "- Preserve the core intent unless the instruction explicitly changes it.",
+      "- Return a polished email draft ready to send.",
+      "- Do not include analysis or commentary.",
+      "- Do not include markdown or code fences unless absolutely necessary.",
+      "",
+      "Thread context:",
+      context,
+      "",
+      draftBlock
+    ].join("\n");
+
+    try {
+      const raw = await generateWithGemini(prompt);
+      const parsed = parseJsonBlock<DraftReply>(raw);
+
+      if (parsed?.subject && parsed?.body) {
+        return {
+          draft: { subject: parsed.subject, body: parsed.body },
+          meta: { model: geminiModel(), source: "gemini" }
+        };
+      }
+    } catch {
+      // Fall through
+    }
   }
 
   return {
     draft: heuristicReviseDraft(currentDraft, instruction),
-    meta: {
-      source: "fallback"
-    }
+    meta: { source: "fallback" }
   };
-}
-
-export function searchThreads(store: InboxStore, query: string): Array<{
-  thread: Thread;
-  score: number;
-}> {
-  const normalized = query.trim().toLowerCase();
-  if (!normalized) {
-    return [];
-  }
-
-  return store.threads
-    .map((thread) => {
-      const messages = getThreadMessages(store, thread.id);
-      const haystack = [
-        thread.subject,
-        thread.participants.join(" "),
-        thread.waitingOn ?? "",
-        messages.map((message) => `${message.subject} ${message.snippet} ${message.bodyPreview}`).join(" ")
-      ]
-        .join(" ")
-        .toLowerCase();
-
-      const score = haystack.includes(normalized)
-        ? normalized.split(/\s+/).reduce((total, term) => total + (haystack.includes(term) ? 1 : 0), 0)
-        : 0;
-
-      return { thread, score };
-    })
-    .filter((result) => result.score > 0)
-    .sort((a, b) => b.score - a.score || b.thread.lastMessageAt.localeCompare(a.thread.lastMessageAt));
 }

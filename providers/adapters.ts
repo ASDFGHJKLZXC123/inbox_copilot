@@ -1,4 +1,4 @@
-import { Message, ProviderType, Thread, UserAccount } from "@/lib/types";
+import { Message, MessageAttachment, ProviderType, Thread, UserAccount } from "@/lib/types";
 
 interface SyncedInbox {
   account: UserAccount;
@@ -11,19 +11,37 @@ interface GmailHeader {
   value: string;
 }
 
+interface GmailBody {
+  data?: string;
+  size?: number;
+  attachmentId?: string;
+}
+
+interface GmailPart {
+  partId?: string;
+  mimeType?: string;
+  filename?: string;
+  headers?: GmailHeader[];
+  body?: GmailBody;
+  parts?: GmailPart[];
+}
+
 interface GmailMessage {
   id: string;
   labelIds?: string[];
   snippet?: string;
   internalDate?: string;
-  payload?: {
-    headers?: GmailHeader[];
-  };
+  payload?: GmailPart;
 }
 
 interface GmailThread {
   id: string;
   messages?: GmailMessage[];
+}
+
+interface GmailAttachmentPayload {
+  data?: string;
+  size?: number;
 }
 
 interface GraphRecipient {
@@ -62,9 +80,124 @@ function getJson<T>(url: string, accessToken: string): Promise<T> {
   });
 }
 
+function headerValue(headers: GmailHeader[] | undefined, name: string): string | undefined {
+  return headers?.find((header) => header.name.toLowerCase() === name.toLowerCase())?.value;
+}
+
 function gmailHeader(message: GmailMessage, name: string): string | undefined {
-  const headers = message.payload?.headers ?? [];
-  return headers.find((header) => header.name.toLowerCase() === name.toLowerCase())?.value;
+  return headerValue(message.payload?.headers, name);
+}
+
+function decodeBase64Url(data: string): Buffer {
+  const normalized = data.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+  return Buffer.from(padded, "base64");
+}
+
+function extractContentId(part: GmailPart): string | undefined {
+  const raw = headerValue(part.headers, "Content-ID");
+  if (!raw) return undefined;
+  return raw.replace(/^<|>$/g, "").trim();
+}
+
+function isInlinePart(part: GmailPart): boolean {
+  const disposition = headerValue(part.headers, "Content-Disposition") ?? "";
+  return disposition.toLowerCase().startsWith("inline");
+}
+
+interface ExtractedBody {
+  html?: string;
+  text?: string;
+  inlineParts: GmailPart[];
+  attachments: MessageAttachment[];
+}
+
+function walkParts(part: GmailPart | undefined, out: ExtractedBody): void {
+  if (!part) return;
+
+  const mime = (part.mimeType ?? "").toLowerCase();
+
+  if (mime.startsWith("multipart/")) {
+    for (const child of part.parts ?? []) walkParts(child, out);
+    return;
+  }
+
+  if (mime === "text/html" && part.body?.data && !out.html) {
+    out.html = decodeBase64Url(part.body.data).toString("utf8");
+    return;
+  }
+
+  if (mime === "text/plain" && part.body?.data && !out.text) {
+    out.text = decodeBase64Url(part.body.data).toString("utf8");
+    return;
+  }
+
+  if (mime.startsWith("image/") && (isInlinePart(part) || extractContentId(part))) {
+    out.inlineParts.push(part);
+    return;
+  }
+
+  if (part.filename && part.body?.attachmentId) {
+    out.attachments.push({
+      filename: part.filename,
+      mimeType: part.mimeType ?? "application/octet-stream",
+      size: part.body.size ?? 0,
+    });
+  }
+}
+
+async function fetchInlineDataUri(
+  accessToken: string,
+  messageId: string,
+  part: GmailPart
+): Promise<string | undefined> {
+  const attachmentId = part.body?.attachmentId;
+  if (!attachmentId) {
+    if (part.body?.data) {
+      return `data:${part.mimeType ?? "application/octet-stream"};base64,${decodeBase64Url(part.body.data).toString("base64")}`;
+    }
+    return undefined;
+  }
+
+  const payload = await getJson<GmailAttachmentPayload>(
+    `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}/attachments/${attachmentId}`,
+    accessToken
+  );
+  if (!payload.data) return undefined;
+  const base64 = decodeBase64Url(payload.data).toString("base64");
+  return `data:${part.mimeType ?? "application/octet-stream"};base64,${base64}`;
+}
+
+async function resolveBody(
+  accessToken: string,
+  messageId: string,
+  gmailMessage: GmailMessage
+): Promise<{ html?: string; text?: string; attachments: MessageAttachment[] }> {
+  const extracted: ExtractedBody = { inlineParts: [], attachments: [] };
+  walkParts(gmailMessage.payload, extracted);
+
+  let html = extracted.html;
+
+  if (html && extracted.inlineParts.length > 0) {
+    const replacements = await Promise.all(
+      extracted.inlineParts.map(async (part) => {
+        const cid = extractContentId(part);
+        if (!cid) return null;
+        const dataUri = await fetchInlineDataUri(accessToken, messageId, part);
+        if (!dataUri) return null;
+        return { cid, dataUri };
+      })
+    );
+
+    for (const replacement of replacements) {
+      if (!replacement) continue;
+      const escaped = replacement.cid.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const pattern = new RegExp(`cid:${escaped}`, "gi");
+      html = html.replace(pattern, replacement.dataUri);
+    }
+  }
+
+  return { html, text: extracted.text, attachments: extracted.attachments };
 }
 
 function normalizeEmail(raw?: string): string {
@@ -81,8 +214,7 @@ function participantsFromMessages(messages: Message[], email: string): string[] 
     new Set(
       messages
         .flatMap((message) => [message.from, ...message.to])
-        .filter(Boolean)
-        .map((participant) => participant || email)
+        .filter((address) => Boolean(address) && address.toLowerCase() !== email.toLowerCase())
     )
   );
 }
@@ -98,42 +230,50 @@ function threadStatus(messages: Message[], email: string): Thread["status"] {
     return "waiting_on";
   }
 
-  return latest.isUnread ? "needs_reply" : "needs_reply";
+  return latest.isUnread ? "needs_reply" : "done";
 }
 
-async function syncGmail(accessToken: string, fallbackEmail?: string): Promise<SyncedInbox> {
+function gmailThreadsUrl(label: MailboxLabel | undefined): string {
+  const base = "https://gmail.googleapis.com/gmail/v1/users/me/threads?maxResults=25";
+  switch (label) {
+    case "sent":
+      return `${base}&labelIds=SENT`;
+    case "drafts":
+      return `${base}&labelIds=DRAFT`;
+    case "trash":
+      return `${base}&labelIds=TRASH`;
+    case "archive": {
+      const q = encodeURIComponent("-in:inbox -in:sent -in:drafts -in:trash -in:spam");
+      return `${base}&q=${q}`;
+    }
+    case "inbox":
+    default:
+      return `${base}&labelIds=INBOX`;
+  }
+}
+
+async function syncGmail(
+  accessToken: string,
+  fallbackEmail?: string,
+  label?: MailboxLabel
+): Promise<SyncedInbox> {
   const profile = await getJson<{ emailAddress?: string }>(
     "https://gmail.googleapis.com/gmail/v1/users/me/profile",
     accessToken
   );
   const email = profile.emailAddress ?? fallbackEmail ?? "unknown@gmail.com";
 
-  const [inboxThreads, sentThreads] = await Promise.all([
-    getJson<{ threads?: Array<{ id: string }> }>(
-      "https://gmail.googleapis.com/gmail/v1/users/me/threads?maxResults=20&labelIds=INBOX",
-      accessToken
-    ),
-    getJson<{ threads?: Array<{ id: string }> }>(
-      "https://gmail.googleapis.com/gmail/v1/users/me/threads?maxResults=20&labelIds=SENT",
-      accessToken
-    )
-  ]);
-
-  const threadIds = Array.from(
-    new Set([...(inboxThreads.threads ?? []), ...(sentThreads.threads ?? [])].map((thread) => thread.id))
+  const threadList = await getJson<{ threads?: Array<{ id: string }> }>(
+    gmailThreadsUrl(label),
+    accessToken
   );
+
+  const threadIds = Array.from(new Set((threadList.threads ?? []).map((t) => t.id)));
 
   const gmailThreads = await Promise.all(
     threadIds.map((threadId) =>
       getJson<GmailThread>(
-        [
-          `https://gmail.googleapis.com/gmail/v1/users/me/threads/${threadId}`,
-          "?format=metadata",
-          "&metadataHeaders=Subject",
-          "&metadataHeaders=From",
-          "&metadataHeaders=To",
-          "&metadataHeaders=Date"
-        ].join(""),
+        `https://gmail.googleapis.com/gmail/v1/users/me/threads/${threadId}?format=full`,
         accessToken
       )
     )
@@ -143,33 +283,41 @@ async function syncGmail(accessToken: string, fallbackEmail?: string): Promise<S
   const threads: Thread[] = [];
 
   for (const gmailThread of gmailThreads) {
-    const threadMessages = (gmailThread.messages ?? []).map((gmailMessage) => {
-      const subject = gmailHeader(gmailMessage, "Subject") ?? "(no subject)";
-      const from = normalizeEmail(gmailHeader(gmailMessage, "From"));
-      const to = (gmailHeader(gmailMessage, "To") ?? "")
-        .split(",")
-        .map((value) => normalizeEmail(value))
-        .filter(Boolean);
-      const receivedAt = gmailMessage.internalDate
-        ? new Date(Number(gmailMessage.internalDate)).toISOString()
-        : new Date().toISOString();
+    const threadMessages = await Promise.all(
+      (gmailThread.messages ?? []).map(async (gmailMessage): Promise<Message> => {
+        const subject = gmailHeader(gmailMessage, "Subject") ?? "(no subject)";
+        const from = normalizeEmail(gmailHeader(gmailMessage, "From"));
+        const to = (gmailHeader(gmailMessage, "To") ?? "")
+          .split(",")
+          .map((value) => normalizeEmail(value))
+          .filter(Boolean);
+        const receivedAt = gmailMessage.internalDate
+          ? new Date(Number(gmailMessage.internalDate)).toISOString()
+          : new Date().toISOString();
 
-      const message: Message = {
-        id: gmailMessage.id,
-        threadId: gmailThread.id,
-        subject,
-        from,
-        to,
-        snippet: gmailMessage.snippet ?? "",
-        bodyPreview: gmailMessage.snippet ?? "",
-        receivedAt,
-        isUnread: (gmailMessage.labelIds ?? []).includes("UNREAD"),
-        labels: (gmailMessage.labelIds ?? []).map((label) => label.toLowerCase())
-      };
+        const body = await resolveBody(accessToken, gmailMessage.id, gmailMessage);
 
+        return {
+          id: gmailMessage.id,
+          threadId: gmailThread.id,
+          subject,
+          from,
+          to,
+          snippet: gmailMessage.snippet ?? "",
+          bodyPreview: gmailMessage.snippet ?? "",
+          bodyHtml: body.html,
+          bodyText: body.text,
+          attachments: body.attachments.length ? body.attachments : undefined,
+          receivedAt,
+          isUnread: (gmailMessage.labelIds ?? []).includes("UNREAD"),
+          labels: (gmailMessage.labelIds ?? []).map((label) => label.toLowerCase())
+        };
+      })
+    );
+
+    for (const message of threadMessages) {
       messages.push(message);
-      return message;
-    });
+    }
 
     if (!threadMessages.length) {
       continue;
@@ -281,17 +429,20 @@ function messagesPush(grouped: Map<string, Message[]>, threadId: string, message
   grouped.set(threadId, existing);
 }
 
+export type MailboxLabel = "inbox" | "sent" | "drafts" | "archive" | "trash";
+
 export async function syncProviderInbox(
   provider: ProviderType,
   email: string | undefined,
-  accessToken: string
+  accessToken: string,
+  label?: MailboxLabel
 ): Promise<SyncedInbox> {
   if (!accessToken) {
     throw new Error("Missing OAuth access token");
   }
 
   if (provider === "google") {
-    return syncGmail(accessToken, email);
+    return syncGmail(accessToken, email, label);
   }
 
   return syncMicrosoft(accessToken, email);

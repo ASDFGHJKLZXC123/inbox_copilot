@@ -1,3 +1,5 @@
+import { randomBytes } from "node:crypto";
+
 import { ProviderSubscription, ProviderType } from "@/lib/types";
 
 function notificationUrlFor(provider: ProviderType): string {
@@ -9,7 +11,7 @@ function notificationUrlFor(provider: ProviderType): string {
 }
 
 function createId(prefix: string): string {
-  return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
+  return `${prefix}_${randomBytes(8).toString("hex")}`;
 }
 
 export async function createProviderSubscription(input: {
@@ -104,6 +106,7 @@ export async function createProviderSubscription(input: {
     externalId: payload.id,
     resourceId: payload.resource,
     notificationUrl,
+    clientState,
     status: "active",
     expiresAt: payload.expirationDateTime ?? expiresAt,
     createdAt: now,

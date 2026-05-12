@@ -1,8 +1,5 @@
-import { Dashboard } from "@/components/dashboard";
-import { getStore, sanitizeStore } from "@/lib/db";
+import { redirect } from "next/navigation";
 
-export default async function HomePage() {
-  const store = await getStore();
-
-  return <Dashboard initialStore={sanitizeStore(store)} />;
+export default function HomePage() {
+  redirect("/inbox");
 }

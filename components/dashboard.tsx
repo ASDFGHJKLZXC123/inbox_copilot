@@ -1,14 +1,19 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { signOut, useSession } from "next-auth/react";
 
-import {
-  DraftReply,
+import { DraftPanel } from "@/components/draft-panel";
+import { HeroSection } from "@/components/hero-section";
+import { ReminderPanels } from "@/components/reminder-panels";
+import { SidebarPanels } from "@/components/sidebar-panels";
+import { ThreadDetail } from "@/components/thread-detail";
+import { NoThreadSelected } from "@/components/thread-detail";
+import type {
+  DraftOptions,
   DraftReplyResult,
   InboxStore,
-  ThreadSummary,
-  ThreadSummaryResult
+  ThreadSummaryResult,
 } from "@/lib/types";
 
 interface SearchResult {
@@ -17,503 +22,325 @@ interface SearchResult {
   unreadCount: number;
 }
 
-const defaultSummary: ThreadSummary | null = null;
-const defaultDraft: DraftReply | null = null;
-
 export function Dashboard({ initialStore }: { initialStore: InboxStore }) {
   const { data: session, status: sessionStatus } = useSession();
+
+  // ── Core data ──────────────────────────────────────────────────────────────
   const [store, setStore] = useState(initialStore);
   const [selectedThreadId, setSelectedThreadId] = useState(initialStore.threads[0]?.id ?? "");
-  const [summary, setSummary] = useState<ThreadSummary | null>(defaultSummary);
-  const [draft, setDraft] = useState<DraftReply | null>(defaultDraft);
-  const [summarySource, setSummarySource] = useState<string>("");
-  const [draftSource, setDraftSource] = useState<string>("");
-  const [draftEditInstruction, setDraftEditInstruction] = useState("");
-  const [tone, setTone] = useState<"concise" | "friendly" | "formal">("concise");
+
+  // ── AI results — cleared on thread change to avoid showing stale data ─────
+  const [summaryResult, setSummaryResult] = useState<ThreadSummaryResult | null>(null);
+  const [draftResult, setDraftResult] = useState<DraftReplyResult | null>(null);
+
+  // ── Draft UI options ───────────────────────────────────────────────────────
+  const [tone, setTone] = useState<DraftOptions["tone"]>("concise");
   const [askClarifyingQuestion, setAskClarifyingQuestion] = useState(false);
+
+  // ── Sidebar / search ───────────────────────────────────────────────────────
   const [syncEmail, setSyncEmail] = useState("you@example.com");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+
+  // ── Reminders ─────────────────────────────────────────────────────────────
   const [reminderDate, setReminderDate] = useState("");
   const [reminderReason, setReminderReason] = useState("Follow up if no reply");
+
+  // ── Status bar + concurrent transitions ───────────────────────────────────
   const [status, setStatus] = useState("Ready");
-  const [isPending, startTransition] = useTransition();
+  const [syncPending, setSyncPending] = useState(false);
+  const [summaryPending, startSummaryTransition] = useTransition();
+  const [draftPending, startDraftTransition] = useTransition();
+  const [searchPending, startSearchTransition] = useTransition();
 
-  const selectedThread = store.threads.find((thread) => thread.id === selectedThreadId) ?? store.threads[0];
-  const selectedMessages = store.messages.filter((message) => message.threadId === selectedThread?.id);
-  const selectedReminders = store.reminders.filter((reminder) => reminder.threadId === selectedThread?.id);
+  // ── Derived values ─────────────────────────────────────────────────────────
+  const selectedThread = useMemo(
+    () => store.threads.find((t) => t.id === selectedThreadId) ?? store.threads[0] ?? null,
+    [store.threads, selectedThreadId]
+  );
+  const selectedMessages = useMemo(
+    () => store.messages.filter((m) => m.threadId === selectedThread?.id),
+    [store.messages, selectedThread?.id]
+  );
+  const selectedReminders = useMemo(
+    () => store.reminders.filter((r) => r.threadId === selectedThread?.id),
+    [store.reminders, selectedThread?.id]
+  );
+
+  // ── Stale-state fix: clear AI results when the selected thread changes ────
+  const prevThreadIdRef = useRef(selectedThreadId);
+  useEffect(() => {
+    if (prevThreadIdRef.current !== selectedThreadId) {
+      prevThreadIdRef.current = selectedThreadId;
+      setSummaryResult(null);
+      setDraftResult(null);
+    }
+  }, [selectedThreadId]);
 
   useEffect(() => {
-    if (!selectedThread && store.threads[0]) {
-      setSelectedThreadId(store.threads[0].id);
-    }
-  }, [selectedThread, store.threads]);
-
-  useEffect(() => {
-    if (session?.user?.email) {
-      setSyncEmail(session.user.email);
-    }
+    if (session?.user?.email) setSyncEmail(session.user.email);
   }, [session?.user?.email]);
 
+  useEffect(() => {
+    if (!selectedThread && store.threads[0]) setSelectedThreadId(store.threads[0].id);
+  }, [selectedThread, store.threads]);
+
+  // ── Thread selection — clears stale AI results synchronously ─────────────
+  function handleSelectThread(id: string) {
+    setSummaryResult(null);
+    setDraftResult(null);
+    setSelectedThreadId(id);
+  }
+
+  // ── API actions ───────────────────────────────────────────────────────────
   async function syncGoogle() {
+    setSyncPending(true);
     setStatus("Syncing google inbox...");
-
-    const response = await fetch("/api/inbox/sync", {
+    const res = await fetch("/api/inbox/sync", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ provider: "google", email: syncEmail })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: "google", email: syncEmail }),
     });
-
-    if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-      setStatus(payload?.error ? `Sync failed: ${payload.error}` : "Sync failed");
+    setSyncPending(false);
+    if (!res.ok) {
+      const p = (await res.json().catch(() => null)) as { error?: string } | null;
+      setStatus(p?.error ? `Sync failed: ${p.error}` : "Sync failed");
       return;
     }
-
-    const nextStore = (await response.json()) as InboxStore;
-    setStore(nextStore);
-    setSelectedThreadId((current) => current || nextStore.threads[0]?.id || "");
+    const next = (await res.json()) as InboxStore;
+    setStore(next);
+    setSelectedThreadId((cur) => cur || next.threads[0]?.id || "");
     setStatus("Google inbox synced");
   }
 
   async function clearCache() {
-    const confirmed = window.confirm(
+    const ok = window.confirm(
       "This will permanently delete ALL your data:\n\n" +
-      "• Synced emails, threads, and messages\n" +
-      "• OAuth connections and saved tokens\n" +
-      "• Reminders and webhook subscriptions\n" +
-      "• Search history and webhook event logs\n\n" +
-      "You will be signed out. Continue?"
+        "• Synced emails, threads, and messages\n• OAuth connections and saved tokens\n" +
+        "• Reminders and webhook subscriptions\n• Search history and webhook event logs\n\n" +
+        "You will be signed out. Continue?"
     );
-    if (!confirmed) {
-      return;
-    }
-
+    if (!ok) return;
     setStatus("Deleting all user data...");
-    const response = await fetch("/api/inbox/cache", {
-      method: "DELETE"
-    });
-
-    if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-      setStatus(payload?.error ? `Clear failed: ${payload.error}` : "Clear failed");
+    const res = await fetch("/api/inbox/cache", { method: "DELETE" });
+    if (!res.ok) {
+      const p = (await res.json().catch(() => null)) as { error?: string } | null;
+      setStatus(p?.error ? `Clear failed: ${p.error}` : "Clear failed");
       return;
     }
-
-    const nextStore = (await response.json()) as InboxStore;
-    setStore(nextStore);
-    setSelectedThreadId("");
-    setSummary(null);
-    setDraft(null);
-    setSummarySource("");
-    setDraftSource("");
-    setDraftEditInstruction("");
-    setSearchResults([]);
-    setSearchQuery("");
-    setReminderDate("");
-    setReminderReason("Follow up if no reply");
-    setSyncEmail("you@example.com");
+    setStore((await res.json()) as InboxStore);
+    setSelectedThreadId(""); setSummaryResult(null); setDraftResult(null);
+    setSearchResults([]); setSearchQuery(""); setReminderDate("");
+    setReminderReason("Follow up if no reply"); setSyncEmail("you@example.com");
     setStatus("All data deleted");
     await signOut({ redirect: false });
   }
 
-  async function generateSummary() {
-    if (!selectedThread) {
-      return;
-    }
-
-    setStatus("Generating summary...");
-    const response = await fetch(`/api/threads/${selectedThread.id}/summary`, { method: "POST" });
-    if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-      setStatus(payload?.error ? `Summary failed: ${payload.error}` : "Summary failed");
-      return;
-    }
-    const payload = (await response.json()) as ThreadSummaryResult;
-    setSummary(payload.summary);
-    setSummarySource(payload.meta.model ? `${payload.meta.source} (${payload.meta.model})` : payload.meta.source);
-    setStatus("Summary ready");
+  function generateSummary() {
+    if (!selectedThread) return;
+    startSummaryTransition(async () => {
+      setStatus("Generating summary...");
+      const res = await fetch(`/api/threads/${selectedThread.id}/summary`, { method: "POST" });
+      if (!res.ok) {
+        const p = (await res.json().catch(() => null)) as { error?: string } | null;
+        setStatus(p?.error ? `Summary failed: ${p.error}` : "Summary failed");
+        return;
+      }
+      setSummaryResult((await res.json()) as ThreadSummaryResult);
+      setStatus("Summary ready");
+    });
   }
 
-  async function generateDraft() {
-    if (!selectedThread) {
-      return;
-    }
-
-    setStatus("Drafting reply...");
-    const response = await fetch(`/api/threads/${selectedThread.id}/draft`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ tone, askClarifyingQuestion })
+  function generateDraft() {
+    if (!selectedThread) return;
+    startDraftTransition(async () => {
+      setStatus("Drafting reply...");
+      const res = await fetch(`/api/threads/${selectedThread.id}/draft`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tone, askClarifyingQuestion }),
+      });
+      if (!res.ok) {
+        const p = (await res.json().catch(() => null)) as { error?: string } | null;
+        setStatus(p?.error ? `Draft failed: ${p.error}` : "Draft failed");
+        return;
+      }
+      setDraftResult((await res.json()) as DraftReplyResult);
+      setStatus("Draft ready");
     });
-    if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-      setStatus(payload?.error ? `Draft failed: ${payload.error}` : "Draft failed");
-      return;
-    }
-    const payload = (await response.json()) as DraftReplyResult;
-    setDraft(payload.draft);
-    setDraftSource(payload.meta.model ? `${payload.meta.source} (${payload.meta.model})` : payload.meta.source);
-    setStatus("Draft ready");
+  }
+
+  function handleRevise(instruction: string) {
+    if (!selectedThread || !draftResult) return;
+    startDraftTransition(async () => {
+      setStatus("Applying draft edit...");
+      const res = await fetch(`/api/threads/${selectedThread.id}/draft/revise`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentDraft: draftResult.draft, instruction }),
+      });
+      if (!res.ok) {
+        const p = (await res.json().catch(() => null)) as { error?: string } | null;
+        setStatus(p?.error ? `Edit failed: ${p.error}` : "Edit failed");
+        return;
+      }
+      setDraftResult((await res.json()) as DraftReplyResult);
+      setStatus("Draft updated");
+    });
   }
 
   async function createReminder() {
-    if (!selectedThread || !reminderDate) {
-      return;
-    }
-
+    if (!selectedThread || !reminderDate) return;
     setStatus("Scheduling reminder...");
-    const response = await fetch("/api/reminders", {
+    const res = await fetch("/api/reminders", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         threadId: selectedThread.id,
         dueAt: new Date(reminderDate).toISOString(),
-        reason: reminderReason
-      })
+        reason: reminderReason,
+      }),
     });
-    if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-      setStatus(payload?.error ? `Reminder failed: ${payload.error}` : "Reminder failed");
+    if (!res.ok) {
+      const p = (await res.json().catch(() => null)) as { error?: string } | null;
+      setStatus(p?.error ? `Reminder failed: ${p.error}` : "Reminder failed");
       return;
     }
-    const reminders = (await response.json()) as InboxStore["reminders"];
-    setStore((current) => ({ ...current, reminders }));
+    const reminders = (await res.json()) as InboxStore["reminders"];
+    setStore((cur) => ({ ...cur, reminders }));
     setStatus("Reminder scheduled");
   }
 
-  async function runSearch() {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      return;
-    }
-
-    setStatus("Searching...");
-    const response = await fetch("/api/search", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ query: searchQuery })
+  function runSearch() {
+    if (!searchQuery.trim()) { setSearchResults([]); return; }
+    startSearchTransition(async () => {
+      setStatus("Searching...");
+      const res = await fetch("/api/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: searchQuery }),
+      });
+      if (!res.ok) {
+        const p = (await res.json().catch(() => null)) as { error?: string } | null;
+        setStatus(p?.error ? `Search failed: ${p.error}` : "Search failed");
+        return;
+      }
+      setSearchResults((await res.json()) as SearchResult[]);
+      setStatus("Search ready");
     });
-    if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-      setStatus(payload?.error ? `Search failed: ${payload.error}` : "Search failed");
-      return;
-    }
-    setSearchResults((await response.json()) as SearchResult[]);
-    setStatus("Search ready");
   }
 
   async function copyDraft() {
-    if (!draft?.body) {
-      setStatus("Nothing to copy");
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(draft.body);
-      setStatus("Draft copied");
-    } catch {
-      setStatus("Copy failed");
-    }
+    if (!draftResult?.draft.body) { setStatus("Nothing to copy"); return; }
+    try { await navigator.clipboard.writeText(draftResult.draft.body); setStatus("Draft copied"); }
+    catch { setStatus("Copy failed"); }
   }
 
-  async function applyDraftEdit() {
-    if (!selectedThread || !draft) {
-      setStatus("Generate a draft first");
-      return;
-    }
-
-    if (!draftEditInstruction.trim()) {
-      setStatus("Add an edit instruction first");
-      return;
-    }
-
-    setStatus("Applying draft edit...");
-    const response = await fetch(`/api/threads/${selectedThread.id}/draft/revise`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        currentDraft: draft,
-        instruction: draftEditInstruction
-      })
-    });
-
-    if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-      setStatus(payload?.error ? `Edit failed: ${payload.error}` : "Edit failed");
-      return;
-    }
-
-    const payload = (await response.json()) as DraftReplyResult;
-    setDraft(payload.draft);
-    setDraftSource(payload.meta.model ? `${payload.meta.source} (${payload.meta.model})` : payload.meta.source);
-    setStatus("Draft updated");
-  }
-
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <main className="shell">
-      <section className="hero">
-        <p className="eyebrow">AI Inbox Copilot</p>
-        <div className="hero-grid">
-          <div>
-            <h1>Clear the inbox with summaries, drafts, reminders, and fast search.</h1>
-            <p className="subtle">
-              OAuth is wired with Auth.js for Google and Microsoft, inbox sync is stored locally, and the copilot
-              layer is structured so real provider APIs and embeddings can drop in next.
-            </p>
-          </div>
-          <div className="auth-card">
-            <p>OAuth sign-in</p>
-            <div className="stack">
-              <button onClick={() => signIn("google")} className="secondary-button" type="button">
-                Connect Google
-              </button>
-            </div>
-            <p className="muted">
-              {sessionStatus === "authenticated"
-                ? `Signed in as ${session?.user?.email ?? "unknown"} via ${session?.user?.provider ?? "provider"}.`
-                : "Set Google client IDs in `.env.local`, then sign in before syncing a live inbox."}
-            </p>
-            {session?.authError ? <p className="muted">Auth token refresh issue: {session.authError}</p> : null}
-          </div>
-        </div>
-      </section>
+      <HeroSection session={session} sessionStatus={sessionStatus} />
 
-      <section className="workspace">
-        <aside className="sidebar">
-          <div className="panel search-panel">
-            <p className="panel-label">Inbox Sync</p>
-            <input
-              className="input"
-              value={syncEmail}
-              onChange={(event) => setSyncEmail(event.target.value)}
-              placeholder="Inbox email"
-            />
-            <div className="inline-actions">
-              <button onClick={() => void syncGoogle()} className="button" type="button">
-                Sync Gmail
-              </button>
-              <button onClick={() => void clearCache()} className="secondary-button" type="button">
-                Delete All Data
-              </button>
-            </div>
-            <p className="muted">Sign in with Google above, then sync Gmail.</p>
-          </div>
+      <section className="workspace" style={{ columnGap: 0 }}>
+        <SidebarPanels
+          syncEmail={syncEmail}
+          onSyncEmailChange={setSyncEmail}
+          onSyncGoogle={() => void syncGoogle()}
+          onClearCache={() => void clearCache()}
+          syncPending={syncPending}
+          searchQuery={searchQuery}
+          onSearchQueryChange={setSearchQuery}
+          onSearch={runSearch}
+          searchPending={searchPending}
+          searchResults={searchResults}
+          threads={store.threads}
+          reminders={store.reminders}
+          selectedThreadId={selectedThread?.id ?? null}
+          onSelectThread={handleSelectThread}
+        />
 
-          <div className="panel">
-            <p className="panel-label">Search</p>
-            <div className="inline-actions">
-              <input
-                className="input"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Keyword search"
-              />
-              <button
-                className="button"
-                type="button"
-                onClick={() => startTransition(() => void runSearch())}
-                disabled={isPending}
-              >
-                Find
-              </button>
-            </div>
-            {searchResults.length > 0 ? (
-              <div className="results">
-                {searchResults.map((result) => (
-                  <button
-                    key={result.thread.id}
-                    className="result"
-                    type="button"
-                    onClick={() => setSelectedThreadId(result.thread.id)}
-                  >
-                    <span>{result.thread.subject}</span>
-                    <span className="muted">
-                      score {result.score} · unread {result.unreadCount}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="muted">Keyword-first today; add vector search beside this route next.</p>
-            )}
-          </div>
-
-          <div className="panel thread-panel">
-            <p className="panel-label">Threads</p>
-            <div className="thread-list">
-              {store.threads.map((thread) => (
-                <button
-                  key={thread.id}
-                  type="button"
-                  className={`thread-item ${thread.id === selectedThread?.id ? "active" : ""}`}
-                  onClick={() => setSelectedThreadId(thread.id)}
-                >
-                  <span>{thread.subject}</span>
-                  <span className="muted">
-                    {thread.status.replace("_", " ")} · {new Date(thread.lastMessageAt).toLocaleString()}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </aside>
-
-        <section className="detail">
+        <section
+          className="detail"
+          style={{ paddingLeft: "20px", borderLeft: "1px solid rgba(77, 54, 34, 0.14)" }}
+        >
           <div className="panel summary-panel">
             <div className="detail-header">
               <div>
                 <p className="panel-label">Selected Thread</p>
-                <h2>{selectedThread?.subject ?? "No thread selected"}</h2>
+                <h2 style={{ marginBottom: 0 }}>
+                  {selectedThread?.subject ?? "No thread selected"}
+                </h2>
               </div>
               <span className="status-pill">{status}</span>
             </div>
             {selectedThread ? (
-              <>
-                <p className="subtle">
-                  {selectedThread.participants.join(", ")} · {selectedThread.status.replace("_", " ")}
-                </p>
-                {selectedThread.waitingOn ? <p className="waiting">Waiting on: {selectedThread.waitingOn}</p> : null}
-                <div className="inline-actions">
-                  <button className="button" type="button" onClick={() => void generateSummary()}>
-                    Summarize Thread
-                  </button>
-                  <button className="secondary-button" type="button" onClick={() => void generateDraft()}>
-                    Draft Reply
-                  </button>
-                </div>
-              </>
+              <div className="inline-actions" style={{ marginTop: "12px" }}>
+                <button
+                  className="button"
+                  type="button"
+                  onClick={generateSummary}
+                  disabled={summaryPending}
+                  style={{ opacity: summaryPending ? 0.65 : 1 }}
+                >
+                  {summaryPending ? "Summarizing…" : "Summarize Thread"}
+                </button>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={generateDraft}
+                  disabled={draftPending}
+                  style={{ opacity: draftPending ? 0.65 : 1 }}
+                >
+                  {draftPending ? "Drafting…" : "Draft Reply"}
+                </button>
+              </div>
             ) : null}
           </div>
 
-          <div className="detail-grid">
-            <div className="panel draft-panel">
-              <p className="panel-label">Summary</p>
-              {summarySource ? <p className="muted">Source: {summarySource}</p> : null}
-              {summary ? (
-                <div className="stack">
-                  <h3>{summary.headline}</h3>
-                  <p>{summary.action}</p>
-                  <ul className="summary-list">
-                    {summary.bullets.map((bullet) => (
-                      <li key={bullet}>{bullet}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : (
-                <p className="muted">Generate a short, actionable thread summary.</p>
-              )}
-            </div>
+          {selectedThread ? (
+            <>
+              <ThreadDetail
+                thread={selectedThread}
+                messages={selectedMessages}
+                summaryResult={summaryResult}
+                summaryPending={summaryPending}
+              />
 
-            <div className="panel">
-              <p className="panel-label">Draft</p>
-              {draftSource ? <p className="muted">Source: {draftSource}</p> : null}
-              <div className="inline-actions">
-                <select className="input" value={tone} onChange={(event) => setTone(event.target.value as typeof tone)}>
-                  <option value="concise">Concise</option>
-                  <option value="friendly">Friendly</option>
-                  <option value="formal">Formal</option>
-                </select>
-                <label className="toggle">
-                  <input
-                    type="checkbox"
-                    checked={askClarifyingQuestion}
-                    onChange={(event) => setAskClarifyingQuestion(event.target.checked)}
-                  />
-                  Ask clarifying question
-                </label>
-                <button className="secondary-button" type="button" onClick={() => void copyDraft()}>
-                  Copy Draft
-                </button>
-              </div>
-              <div className="stack">
-                <input
-                  className="input"
-                  value={draftEditInstruction}
-                  onChange={(event) => setDraftEditInstruction(event.target.value)}
-                  placeholder="Tell the AI how to edit this draft"
-                />
-                <button className="secondary-button" type="button" onClick={() => void applyDraftEdit()}>
-                  Apply Edit
-                </button>
-              </div>
-              {draft ? (
-                <textarea
-                  className="draft-box draft-editor"
-                  value={draft.body}
-                  onChange={(event) =>
-                    setDraft((current) => (current ? { ...current, body: event.target.value } : current))
+              <div className="detail-grid">
+                <DraftPanel
+                  thread={selectedThread}
+                  draftResult={draftResult}
+                  draftPending={draftPending}
+                  tone={tone}
+                  askClarifyingQuestion={askClarifyingQuestion}
+                  onToneChange={setTone}
+                  onAskClarifyingQuestionChange={setAskClarifyingQuestion}
+                  onRevise={handleRevise}
+                  onCopy={() => void copyDraft()}
+                  onDraftBodyChange={(body) =>
+                    setDraftResult((cur) => cur ? { ...cur, draft: { ...cur.draft, body } } : cur)
                   }
                 />
-              ) : (
-                <p className="muted">Generate a reply draft.</p>
-              )}
-            </div>
-          </div>
 
-          <div className="detail-grid">
-            <div className="panel">
-              <p className="panel-label">Follow-up Reminder</p>
-              <div className="stack">
-                <input
-                  className="input"
-                  type="datetime-local"
-                  value={reminderDate}
-                  onChange={(event) => setReminderDate(event.target.value)}
+                <ReminderPanels
+                  thread={selectedThread}
+                  reminders={selectedReminders}
+                  reminderDate={reminderDate}
+                  onReminderDateChange={setReminderDate}
+                  reminderReason={reminderReason}
+                  onReminderReasonChange={setReminderReason}
+                  onSchedule={() => void createReminder()}
                 />
-                <input
-                  className="input"
-                  value={reminderReason}
-                  onChange={(event) => setReminderReason(event.target.value)}
-                />
-                <button className="button" type="button" onClick={() => void createReminder()}>
-                  Schedule Follow-up
-                </button>
               </div>
+            </>
+          ) : (
+            <div
+              className="panel"
+              style={{ display: "flex", alignItems: "center", justifyContent: "center" }}
+            >
+              <NoThreadSelected />
             </div>
-
-            <div className="panel">
-              <p className="panel-label">Current Reminders</p>
-              {selectedReminders.length ? (
-                <div className="stack">
-                  {selectedReminders.map((reminder) => (
-                    <div className="reminder" key={reminder.id}>
-                      <strong>{new Date(reminder.dueAt).toLocaleString()}</strong>
-                      <span>{reminder.reason}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="muted">No follow-up scheduled on this thread.</p>
-              )}
-            </div>
-          </div>
-
-          <div className="panel messages-panel">
-            <p className="panel-label">Messages</p>
-            <div className="stack">
-              {selectedMessages.map((message) => (
-                <article key={message.id} className="message-card">
-                  <div className="message-header">
-                    <strong>{message.from}</strong>
-                    <span className="muted">{new Date(message.receivedAt).toLocaleString()}</span>
-                  </div>
-                  <p>{message.snippet}</p>
-                  <p className="muted">{message.bodyPreview}</p>
-                </article>
-              ))}
-            </div>
-          </div>
+          )}
         </section>
       </section>
     </main>

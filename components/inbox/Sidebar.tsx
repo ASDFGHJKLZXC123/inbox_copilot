@@ -1,125 +1,262 @@
 "use client";
 
-import {
-  Archive,
-  CaretUp,
-  Clock,
-  EnvelopeOpen,
-  FileText,
-  PaperPlaneTilt,
-  PencilSimple,
-  Sparkle,
-  Tray,
-  Trash,
-} from "@phosphor-icons/react";
+import type { ComponentType } from "react";
 
-interface SidebarProps {
-  activeNav: string;
-  onNavChange: (nav: string) => void;
+import type { NavId, UiSession } from "@/lib/types-ui";
+import * as I from "@/components/ui/icons";
+
+export interface SidebarProps {
+  activeNav: NavId;
+  setActiveNav: (id: NavId) => void;
+  session: UiSession;
+  folderCounts: Partial<Record<NavId, number>>;
+  onCompose: () => void;
+  onSignOut: () => void;
+  onClearCache: () => void;
+  onOpenPreferences: () => void;
+  accountMenuOpen: boolean;
+  setAccountMenuOpen: (open: boolean) => void;
 }
 
-const navItems = [
-  { id: "inbox", label: "Inbox", icon: Tray, iconWeight: "fill" as const, badge: 12, badgeClass: "bg-brand-100 text-brand-600" },
-  { id: "ai-drafts", label: "AI Drafts", icon: Sparkle, badge: 3, badgeClass: "bg-slate-200 text-slate-600", aiIcon: true },
-  { id: "reminders", label: "Reminders", icon: Clock, badge: 2, badgeClass: "bg-orange-100 text-orange-600" },
-  { id: "sent", label: "Sent", icon: PaperPlaneTilt },
-  { id: "drafts", label: "Drafts", icon: FileText },
-  { id: "archive", label: "Archive", icon: Archive },
-  { id: "trash", label: "Trash", icon: Trash },
+const NAV_ITEMS: { id: NavId; label: string }[] = [
+  { id: "inbox", label: "Inbox" },
+  { id: "sent", label: "Sent" },
+  { id: "drafts", label: "Drafts" },
+  { id: "archive", label: "Archive" },
+  { id: "trash", label: "Trash" },
 ];
 
-const labels = [
-  { id: "project-alpha", label: "Project Alpha", color: "bg-blue-400" },
-  { id: "design-team", label: "Design Team", color: "bg-purple-400" },
-  { id: "personal", label: "Personal", color: "bg-green-400" },
-];
+const NAV_ICONS: Record<NavId, ComponentType<I.IconProps>> = {
+  inbox: I.Inbox,
+  sent: I.Send,
+  drafts: I.Draft,
+  archive: I.Archive,
+  trash: I.Trash,
+};
 
-export function Sidebar({ activeNav, onNavChange }: SidebarProps) {
+function avatarHue(s: string): number {
+  let h = 0;
+  for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return h % 360;
+}
+
+export function Sidebar({
+  activeNav,
+  setActiveNav,
+  session,
+  folderCounts,
+  onCompose,
+  onSignOut,
+  onClearCache,
+  onOpenPreferences,
+  accountMenuOpen,
+  setAccountMenuOpen,
+}: SidebarProps) {
   return (
-    <aside className="w-64 bg-slate-50 border-r border-slate-200 flex flex-col h-full flex-shrink-0 font-sans">
-      {/* Logo */}
-      <div className="h-16 flex items-center px-6 border-b border-slate-200">
-        <div className="flex items-center gap-2 text-ai-600">
-          <EnvelopeOpen size={24} weight="fill" className="text-ai-600" />
-          <span className="font-bold text-lg tracking-tight text-slate-900">
-            Mail<span className="text-ai-600">Copilot</span>
-          </span>
+    <aside className="w-[228px] flex-shrink-0 border-r border-slate-800/80 bg-slate-950 flex flex-col">
+      {/* Brand */}
+      <div className="h-14 px-4 flex items-center gap-2.5 border-b border-slate-800/80">
+        <div className="w-7 h-7 rounded-md bg-gradient-to-br from-sky-400 to-indigo-500 flex items-center justify-center text-slate-950 shadow-sm">
+          <I.Lightning size={15} strokeWidth={2.2} />
         </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[13px] font-semibold text-slate-100 leading-tight">Copilot</div>
+          <div className="text-[10.5px] text-slate-500 font-medium tracking-wide uppercase">Inbox</div>
+        </div>
+        <button
+          onClick={onOpenPreferences}
+          className="text-slate-500 hover:text-slate-200 transition-colors"
+          title="Preferences"
+          aria-label="Preferences"
+        >
+          <I.Settings size={14} />
+        </button>
       </div>
 
-      {/* New Message */}
-      <div className="p-4">
-        <button className="w-full bg-brand-600 hover:bg-brand-500 text-white shadow-sm rounded-lg py-2.5 px-4 flex items-center justify-center gap-2 font-medium transition-colors text-sm">
-          <PencilSimple size={18} />
-          New Message
+      {/* Compose */}
+      <div className="px-3 pt-3">
+        <button
+          onClick={onCompose}
+          className="w-full h-9 rounded-md bg-slate-900 hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700 text-slate-200 text-[13px] font-medium flex items-center justify-center transition-colors focus-ring"
+        >
+          Compose
         </button>
       </div>
 
       {/* Nav */}
-      <div className="flex-1 overflow-y-auto inbox-scroll py-2 px-3 space-y-6">
-        <nav className="space-y-1">
-          {navItems.map(({ id, label, icon: Icon, iconWeight, badge, badgeClass, aiIcon }) => {
-            const isActive = activeNav === id;
+      <nav className="px-2 pt-4 flex-1">
+        <div className="px-2 pb-1.5 text-[10.5px] uppercase tracking-[0.08em] text-slate-500 font-medium">
+          Mailboxes
+        </div>
+        <ul className="space-y-0.5">
+          {NAV_ITEMS.map((item) => {
+            const active = activeNav === item.id;
+            const Icon = NAV_ICONS[item.id];
+            const count = folderCounts[item.id] ?? 0;
             return (
-              <button
-                key={id}
-                onClick={() => onNavChange(id)}
-                className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors text-left ${
-                  isActive
-                    ? "bg-brand-50 text-brand-600"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon
-                    size={18}
-                    weight={iconWeight ?? "regular"}
-                    className={aiIcon ? "text-ai-600" : undefined}
-                  />
-                  {label}
-                </div>
-                {badge !== undefined && (
-                  <span className={`py-0.5 px-2 rounded-full text-xs ${badgeClass}`}>
-                    {badge}
-                  </span>
-                )}
-              </button>
+              <li key={item.id}>
+                <button
+                  onClick={() => setActiveNav(item.id)}
+                  className={
+                    "group w-full h-8 px-2 rounded-md flex items-center gap-2.5 text-[13px] transition-colors " +
+                    (active
+                      ? "bg-slate-800/70 text-slate-100"
+                      : "text-slate-400 hover:bg-slate-800/40 hover:text-slate-200")
+                  }
+                >
+                  <Icon size={15} strokeWidth={active ? 1.9 : 1.6} />
+                  <span className="flex-1 text-left">{item.label}</span>
+                  {item.id === "inbox" && count > 0 && (
+                    <span className="text-[11px] font-medium text-slate-300 tabular-nums">{count}</span>
+                  )}
+                </button>
+              </li>
             );
           })}
-        </nav>
+        </ul>
 
-        {/* Labels */}
-        <div>
-          <h3 className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-            Labels
-          </h3>
-          <nav className="space-y-1">
-            {labels.map(({ id, label, color }) => (
-              <button
-                key={id}
-                className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-slate-600 hover:bg-slate-100 transition-colors text-left"
-              >
-                <span className={`w-2.5 h-2.5 rounded-full ${color}`} />
-                {label}
-              </button>
-            ))}
-          </nav>
+        <div className="mt-6 px-2 pb-1.5 text-[10.5px] uppercase tracking-[0.08em] text-slate-500 font-medium">
+          Copilot
         </div>
-      </div>
+        <ul className="space-y-0.5">
+          <li>
+            <button className="group w-full h-8 px-2 rounded-md flex items-center gap-2.5 text-[13px] text-slate-400 hover:bg-slate-800/40 hover:text-slate-200 transition-colors">
+              <I.Bell size={15} />
+              <span className="flex-1 text-left">Follow-ups</span>
+            </button>
+          </li>
+          <li>
+            <button className="group w-full h-8 px-2 rounded-md flex items-center gap-2.5 text-[13px] text-slate-400 hover:bg-slate-800/40 hover:text-slate-200 transition-colors">
+              <I.Sparkles size={15} />
+              <span className="flex-1 text-left">AI history</span>
+            </button>
+          </li>
+        </ul>
+      </nav>
 
-      {/* User profile */}
-      <div className="p-4 border-t border-slate-200">
-        <button className="flex items-center gap-3 w-full hover:bg-slate-100 p-2 rounded-md transition-colors text-left">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-brand-500 to-ai-600 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
-            EJ
+      {/* Account footer */}
+      <div className="relative border-t border-slate-800/80">
+        {accountMenuOpen && (
+          <AccountMenu
+            session={session}
+            onSignOut={onSignOut}
+            onClearCache={onClearCache}
+            onOpenPreferences={onOpenPreferences}
+            onClose={() => setAccountMenuOpen(false)}
+          />
+        )}
+        <button
+          onClick={() => setAccountMenuOpen(!accountMenuOpen)}
+          className={
+            "w-full px-3 py-3 flex items-center gap-2.5 text-left transition-colors " +
+            (accountMenuOpen ? "bg-slate-900" : "hover:bg-slate-900/60")
+          }
+        >
+          <div
+            className="w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-semibold text-slate-950 flex-shrink-0"
+            style={{ background: `oklch(0.78 0.13 ${avatarHue(session.user.email)})` }}
+          >
+            {session.user.initial}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-slate-900 truncate">Elena Jenkins</p>
-            <p className="text-xs text-slate-500 truncate">elena@company.com</p>
+            <div className="text-[12.5px] text-slate-100 font-medium truncate leading-tight">
+              {session.user.name}
+            </div>
+            <div className="text-[11px] text-slate-500 truncate">{session.user.email}</div>
           </div>
-          <CaretUp size={14} className="text-slate-400 flex-shrink-0" />
+          <I.ChevronUp
+            size={13}
+            className={"text-slate-500 transition-transform " + (accountMenuOpen ? "" : "rotate-180")}
+          />
         </button>
       </div>
     </aside>
+  );
+}
+
+function AccountMenu({
+  session,
+  onSignOut,
+  onClearCache,
+  onOpenPreferences,
+  onClose,
+}: {
+  session: UiSession;
+  onSignOut: () => void;
+  onClearCache: () => void;
+  onOpenPreferences: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <>
+      <div className="fixed inset-0 z-20" onClick={onClose} />
+      <div className="absolute bottom-full left-3 right-3 mb-2 z-30 bg-slate-900 border border-slate-800 rounded-lg shadow-2xl shadow-black/40 overflow-hidden">
+        <div className="px-3 py-2.5 border-b border-slate-800">
+          <div className="text-[12px] text-slate-300 font-medium truncate">{session.user.name}</div>
+          <div className="text-[11px] text-slate-500 truncate">{session.user.email}</div>
+          <div className="mt-1.5 flex items-center gap-1.5 text-[10.5px] text-emerald-300">
+            <I.Dot size={10} className="text-emerald-400" />
+            <span>Connected to Google</span>
+          </div>
+        </div>
+        <div className="py-1">
+          <MenuItem
+            icon={I.Settings}
+            label="Preferences"
+            onClick={() => {
+              onClose();
+              onOpenPreferences();
+            }}
+          />
+          <MenuItem icon={I.Refresh} label="Resync this account" onClick={onClose} />
+        </div>
+        <div className="py-1 border-t border-slate-800">
+          <MenuItem
+            icon={I.Trash}
+            label="Clear local cache…"
+            destructive
+            onClick={() => {
+              onClose();
+              onClearCache();
+            }}
+          />
+          <MenuItem
+            icon={I.LogOut}
+            label="Sign out"
+            onClick={() => {
+              onClose();
+              onSignOut();
+            }}
+          />
+        </div>
+      </div>
+    </>
+  );
+}
+
+function MenuItem({
+  icon: Icon,
+  label,
+  onClick,
+  destructive,
+}: {
+  icon: ComponentType<I.IconProps>;
+  label: string;
+  onClick: () => void;
+  destructive?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={
+        "w-full px-3 h-8 text-[12.5px] flex items-center gap-2.5 transition-colors " +
+        (destructive
+          ? "text-rose-300 hover:bg-rose-500/10"
+          : "text-slate-300 hover:bg-slate-800/70")
+      }
+    >
+      <Icon size={14} />
+      <span className="flex-1 text-left">{label}</span>
+    </button>
   );
 }

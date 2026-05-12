@@ -45,7 +45,7 @@ Parallel safety: each workstream in Phase 1 has an **exclusive write set** — n
 
 4. **Port global styles**
    - `app/globals.css`: scrollbar styles, `::selection`, `kbd`, `@keyframes shimmer/spin/sparkle/toastIn/overlayIn/dialogIn`, `.focus-ring`, dark-mode body bg `#020617`, Geist font import.
-   - Drop `inbox.css` entirely (mockup uses Tailwind utility classes, not the old CSS).
+   - **Do NOT delete `app/inbox/inbox.css` in Phase 0** — Workstream A owns that deletion (it imports the CSS today; deleting in Phase 0 breaks the dev build before A lands). Phase 0 is additive only.
    - `tailwind.config.js`: add `Geist` / `Geist Mono` font families, the `accent` color palette (`#7dd3fc`, `500`, `600`), and any extended spacing the mockup uses.
    - `app/layout.tsx`: add Geist `<link>` preconnect+stylesheet.
 
@@ -1158,5 +1158,221 @@ If the team prefers a synchronous start, the kickoff agenda is:
 4. (5 min) Confirm branch checkout + first commit on each workstream branch.
 
 Output gate: the meeting ends only when each workstream lead has pushed an empty commit on their branch with a message confirming they've read the plan and have no remaining questions. If a lead has questions, those go into the doc, not into Slack.
+
+---
+
+# Appendix C — Session prompts
+
+Five copy-pasteable prompts, one per session, in the order they should run. Each prompt is self-contained — the receiving agent does NOT have prior chat context. Each tells the agent exactly which plan sections to load.
+
+## C.1 — Phase 0 (foundation)
+
+```
+Working dir: /Users/f8fq/coding projects/Finished/AI_Inbox_Copilot
+
+Read FRONTEND_PORT_PLAN.md sections:
+- "Phase 0 — Shared foundation"
+- Appendix A.1 (shared data types)
+- Appendix A.2 (hooks)
+- Appendix A.3 (API adapter)
+- Appendix B.1 (verification contract)
+- Appendix B.2 (Phase 0 specifics: icons, algorithms, safelist, Geist)
+- Appendix B.7 (branching, PR target, scope tripwires)
+
+Execute Phase 0:
+1. `git checkout -b port/phase-0` from main.
+2. Baseline: `npm run typecheck` must be green BEFORE you write any code. If it isn't, stop and report.
+3. Write the 6 new files and edit the 3 existing files listed in Phase 0's "Files produced".
+4. Verify: `npm run typecheck`, `npm run test:unit`, `npm run test:api` all green. `npm run dev` still serves the current (legacy) UI without console errors — Phase 0 is additive, not a replacement.
+5. Commit. Open a PR targeting `main` with title "Phase 0: shared foundation for Email Copilot port".
+
+Stop and ask if:
+- Baseline typecheck or tests are red before you start.
+- Any prop interface in Appendix A doesn't match the corresponding mockup file's actual usage.
+- A Phase 0 helper signature would force a non-additive change to legacy components.
+
+Do NOT touch: app/api/**, app/inbox/**, components/dashboard.tsx, lib/db.ts, lib/schemas.ts, lib/types.ts, lib/auth.ts, middleware.ts, providers/**. Phase 0 is additive only.
+
+When done, report: the PR URL, the list of files added, and the typecheck/test output.
+```
+
+## C.2 — Workstream A (inbox screen)
+
+Run after C.1's PR is merged to `main`.
+
+```
+Working dir: /Users/f8fq/coding projects/Finished/AI_Inbox_Copilot
+
+Read FRONTEND_PORT_PLAN.md sections:
+- "Phase 1 — Parallel workstreams" → "Workstream A — Inbox screen"
+- Appendix A.1, A.3 (data types and API adapter — already implemented in Phase 0, you're a consumer)
+- Appendix A.4 (inbox component prop interfaces)
+- Appendix A.7 (smoke-test checklist — your acceptance criteria)
+- Appendix B.1 (verification tiers)
+- Appendix B.3 (visual tolerance, authError mapping, optimistic-update pattern, LiveSync policy)
+- Appendix B.7 (branch + PR rules + scope tripwires)
+
+Execute Workstream A:
+1. `git checkout -b port/inbox` from latest `main` (Phase 0 has merged).
+2. Implement components/inbox/* per A.4. Delete legacy files listed in Workstream A's exclusive write set.
+3. Wire each component to `api` from `lib/ui/api.ts` (do NOT call fetch directly).
+4. Verify: typecheck + test:unit + test:api + **test:contrast** all green (test:contrast is mandatory per B.1 for workstream A). Manually walk these A.7 sections at **Tier 2** (seeded JSON store, no OAuth): "Inbox — read", "Inbox — AI" (uses fallback heuristics if no AI keys), "EmailMessage rendering", and the "Regression" block. The "Inbox — write" / "Inbox — organize" / "LiveSync" sections call Gmail-token routes (modify/send/google-sync/subscription renewal) and are **Tier 3**; verify those only if Google OAuth credentials are configured, otherwise note "deferred to Phase 2 Tier 3" in the PR.
+5. PR: target `main`. Include two side-by-side screenshots in the PR body: mockup vs new render at 1280px viewport.
+
+Stop and ask if:
+- An API route's actual return shape differs from what Appendix A.3 documented.
+- The optimistic-update rollback path produces a flicker that's visibly wrong.
+- A mockup feature has no backend equivalent at all (page the lead per B.7 tripwire #1).
+
+Tripwires (per B.7): do NOT modify app/api/**, lib/db.ts, lib/schemas.ts, lib/types.ts, lib/auth.ts, middleware.ts. Do NOT add new npm dependencies.
+
+Workstream A may run in 2 sessions. If you split, the natural seam is after Sidebar+ThreadListPanel+EmailDetailPanel land (session 1); AI/Reminder/Compose/Toast/LiveSync/Search in session 2.
+
+When done, report: PR URL, list of files added/deleted, screenshot pair, smoke checklist results.
+```
+
+## C.3 — Workstream B (sign-in gate)
+
+Can run in parallel with C.2 / C.4 or after. Branching keyed on **Phase 0**, not A: branch from `port/phase-0` if Phase 0 hasn't merged to `main` yet; otherwise from `main`.
+
+```
+Working dir: /Users/f8fq/coding projects/Finished/AI_Inbox_Copilot
+
+Read FRONTEND_PORT_PLAN.md sections:
+- "Phase 1 — Parallel workstreams" → "Workstream B — Sign-in gate"
+- Appendix A.5 (SignInGate prop interface)
+- Appendix B.1 (verification tiers)
+- Appendix B.4 (middleware matcher + body — this is the critical part)
+- Appendix B.7 (branch + PR rules + tripwires)
+
+Execute Workstream B:
+1. Branch `port/signin` from `main` if Phase 0 has merged, otherwise from `port/phase-0`. Per B.7, target `main` if it has merged, else target `port/phase-0`.
+2. Create app/(auth)/signin/page.tsx and components/auth/SignInGate.tsx per A.5. Include all 5 visual elements from B.4 (grid, brand chip, headline, CTA, privacy line). Build-version footer is optional.
+3. Edit lib/auth.ts ONLY to change `pages.signIn: "/"` to `pages.signIn: "/signin"`. Single-line edit.
+4. Edit middleware.ts EXACTLY as shown in B.4 (segment-bounded matcher + new body that redirects page routes and 401s API routes). Do not invent new logic.
+5. Verify: typecheck + test:unit + test:api green. Manually verify: visiting /inbox or /preferences while logged out redirects to /signin. The OAuth callback still works (visit /signin → "Continue with Google" → Google consent screen). If you have no Google credentials configured, skip the callback test and note it in the PR.
+6. PR with one screenshot.
+
+Stop and ask if:
+- The middleware change breaks any existing test in tests/api/.
+- /api/auth/* returns 401 or 404 after the matcher change (you bricked OAuth — revert the matcher and ask).
+
+Tripwires (per B.7): the auth.ts and middleware.ts edits are EXPLICITLY in B's write set. Do not edit anything else in lib/ or under app/api/.
+
+When done, report: PR URL, screenshot, confirmation that middleware logic was copied verbatim from B.4.
+```
+
+## C.4 — Workstream C (preferences)
+
+Can run in parallel with C.2 / C.3 or after. Branching keyed on **Phase 0**: branch from `port/phase-0` if Phase 0 hasn't merged to `main` yet; otherwise from `main`.
+
+```
+Working dir: /Users/f8fq/coding projects/Finished/AI_Inbox_Copilot
+
+Read FRONTEND_PORT_PLAN.md sections:
+- "Phase 1 — Parallel workstreams" → "Workstream C — Preferences page"
+- Appendix A.6 (PreferencesState flat shape, DEFAULT_PREFS, section contracts)
+- Appendix B.1 (verification tiers)
+- Appendix B.5 (shared primitives, verify-flow scope, sub-section split)
+- Appendix B.7 (branch + PR rules + tripwires)
+
+Execute Workstream C:
+1. Branch `port/preferences` from `main` if Phase 0 has merged, otherwise from `port/phase-0`. Target accordingly.
+2. Create:
+   - app/preferences/page.tsx (with ESC → router.push('/inbox') handler)
+   - components/preferences/PreferencesPage.tsx (port of mockup line 48 onward; uses flat PreferencesState from A.6, NOT nested)
+   - components/preferences/sections/{Account,Ai,Notifications,Appearance,Keyboard,Connected,Privacy}Section.tsx
+   - components/preferences/ui/{Card,Row,Section,Toggle,Segmented,Slider,ToneCards,ThemeSwatch,SecondaryButton}.tsx (shared primitives per B.5)
+3. Wire Connected section to `api.listSubscriptions()`. Wire Privacy "Clear local cache" to `components/ui/ClearCacheAction.tsx` (Phase 0 output). API-key Verify button: render but disabled with title="API key verification ships with the backend (TODO)" — see B.5.
+4. Verify: typecheck + test:unit + test:api + **test:contrast** all green (test:contrast is mandatory per B.1 for workstream C — Preferences uses the dark theme). Manually verify: /preferences renders all 7 sections without console errors; ESC navigates back; Connected lists real subscriptions; Clear-cache flow opens dialog → wipes → signs out.
+5. PR with screenshots of each of the 7 sections.
+
+Stop and ask if:
+- A section's port would require a new API route or DB column (per B.7 tripwire #1).
+- The 1.5-session budget is at risk on the ProviderModelPicker (per B.5, function over pixel fidelity is acceptable).
+
+Tripwires (per B.7): do NOT add new API routes, schema columns, or DB migrations. Preferences persistence is explicitly out of scope; `prefs` lives in `useState(DEFAULT_PREFS)`.
+
+When done, report: PR URL, 7 screenshots, list of TODO(prefs-backend) markers added.
+```
+
+## C.5 — Phase 2 (integration + verification)
+
+Run only after C.2, C.3, C.4 have all merged.
+
+```
+Working dir: /Users/f8fq/coding projects/Finished/AI_Inbox_Copilot
+
+Read FRONTEND_PORT_PLAN.md sections:
+- "Phase 2 — Integration & verification"
+- Appendix A.7 (full smoke-test checklist)
+- Appendix B.1 (verification tiers — you'll run Tier 3 here)
+- Appendix B.6 (codex arbitration rules + cleanup confirmation fallback)
+
+Execute Phase 2:
+1. Branch `port/phase-2` from latest `main` (A + B + C merged).
+2. Smoke-check by hand. Split by tier:
+   - **Tier 2 (mandatory)**: walk the A.7 "Inbox — read", "Inbox — AI", "EmailMessage rendering", "Preferences", and "Regression" sections against the seeded JSON store. Any failure → file an issue + bisect to the workstream PR that introduced it; do NOT silently patch.
+   - **Tier 3 (mandatory if credentials available, otherwise document the gap)**: A.7 "Auth", "Inbox — write", "Inbox — organize", and "LiveSync" sections — these require a real Google account + `GOOGLE_CLIENT_ID/SECRET` configured. Document any scope-related 403s.
+3. (Reserved — was redundant with step 2.)
+4. Run all four test suites: typecheck, test:unit, test:api, test:contrast.
+5. Invoke codex review. **Diff target matters**: do NOT use `origin/main..main` — after A/B/C merge into main, the upstream typically catches up and the diff is empty. Use the pre-port snapshot tag `port-base-snapshot` (created before Phase 0) as the diff base:
+   ```
+   /Applications/Codex.app/Contents/Resources/codex exec "Review the diff between port-base-snapshot and HEAD (Phase 0 + Workstreams A/B/C all merged). Focus on: (a) any backend API call wired wrong, (b) any mockup behavior silently dropped, (c) accessibility regression vs the previous UI, (d) mock data leaking into real components. For each finding, return: file:line, severity (blocker / important / nit), and a one-line proposed fix."
+   ```
+   If `port-base-snapshot` doesn't exist, create it before running codex: `git tag port-base-snapshot <pre-Phase-0-commit-sha>`. Triage per B.6: blocker → fix before Phase 2 PR; important → fix or open issue with deadline; nit → port-polish issue; scope creep → reject.
+6. Cleanup: confirm with the user before deleting `Email Copilot/` and `Email Copilot.zip`. If user is unreachable, move them to `.archive/` instead (per B.6).
+7. Final PR: any small fixes from steps 2-5 bundled.
+
+Stop and ask if:
+- A workstream PR introduced a regression and the fix is non-trivial.
+- Codex's review surfaces a disagreement with a Workstream's PR that's already merged.
+- Real-OAuth E2E fails on a Gmail path that worked pre-port (likely a route shape regression).
+
+When done, report: smoke checklist status, codex findings + triage decisions, cleanup status (deleted vs archived).
+```
+
+## C.6 — Orchestration cheat sheet
+
+For the lead (you):
+
+- **Sequential** (recommended for first execution): C.1 → C.2 → C.3 → C.4 → C.5. Each in a fresh Claude Code session.
+- **Parallel** (after Phase 0 lands): C.2 + C.3 + C.4 in three concurrent sessions. Use `git worktree add -b` to create the branch **and** the worktree in one command (the branches don't pre-exist):
+  ```
+  git worktree add -b port/inbox       ../inbox-port  main
+  git worktree add -b port/signin      ../signin-port main
+  git worktree add -b port/preferences ../prefs-port  main
+  ```
+  Each worktree is on its own branch; the three Claude Code sessions `cd` into the respective directory. If Phase 0 has not yet merged to main, replace `main` with `port/phase-0` as the source branch.
+- **Sub-agent fan-out** (single orchestrator session): use Claude Code's Agent tool with `subagent_type: general-purpose` and `isolation: "worktree"`, three parallel tool calls in one message, each given C.2/C.3/C.4 verbatim as the prompt.
+
+Whichever you pick, the prompts above are designed to be copy-pasted **verbatim**. Do not edit them without committing the change to FRONTEND_PORT_PLAN.md first — they reference plan sections by name, and divergence between prompt and plan breaks the contract.
+
+### Lead checklist (run between sessions)
+
+**Before kicking off C.1:**
+- [ ] Create the snapshot tag for rollback + Phase 2 codex diff base: `git tag port-base-snapshot $(git rev-parse HEAD)` on the pre-Phase-0 main HEAD.
+- [ ] Confirm `main` is green: `npm run typecheck && npm run test:unit && npm run test:api`.
+
+**After C.1 lands (Phase 0 merged to main):**
+- [ ] Notify any Workstream agent currently branched off `port/phase-0` to retarget their PR to `main` and rebase: `gh pr edit <num> --base main && git rebase main`.
+
+**Per workstream PR (A, B, C) — review gate:**
+- [ ] Test command matrix from B.1: typecheck + test:unit + test:api green. test:contrast green for A and C.
+- [ ] Screenshots present in PR body (mockup vs new render).
+- [ ] Diff stays within the workstream's exclusive write set from the plan body — no edits in another workstream's territory.
+- [ ] Reviewer assignments (per B.7): Workstream A → Phase 0 lead + 1 other workstream lead; Workstream B → either A or C lead; Workstream C → Phase 0 lead + 1 other workstream lead.
+
+**Merge order:**
+- C.1 (Phase 0) must merge first.
+- After Phase 0, A / B / C can land in any order. Recommended: A first (largest, surfaces issues that B and C can adapt to), then B, then C.
+- C.5 (Phase 2) runs only after all three Workstream PRs have merged to main.
+
+**Scope tripwire response (per B.7):**
+If a workstream agent reports hitting any of the 6 tripwires (new API route, schema edit, OAuth scope change, new dependency, middleware change outside B's scope, skipping a test), the lead decides on the spot:
+1. Approve as a foundation promotion. If Phase 0 has **not** yet merged: workstream opens a PR against `port/phase-0`. If Phase 0 has **already** merged: workstream opens a small standalone PR against `main` titled "Phase 0 follow-up: <helper>"; other workstreams rebase onto main once it lands.
+2. Approve as workstream-local with a justification comment in the PR.
+3. Reject → workstream finds a different path within the existing surface.
+
 
 

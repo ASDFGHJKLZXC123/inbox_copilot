@@ -79,13 +79,17 @@ Google may also return standard userinfo scopes as part of the granted token set
 
 Without the `Gmail API` enabled, Google sign-in may succeed, but Gmail sync will fail when the app calls the Gmail REST API.
 
+## Architecture decisions
+
+See `docs/decisions.md` for the locked decisions (D1–D8) and the Reminder data-model contract that gates Phases 4 and 5 of the remediation plan.
+
 ## Notes
 
 - The current UI uses Google sign-in and Gmail sync. Microsoft Graph backend code still exists, but it is not exposed in the current interface.
 - Summary and draft generation use Gemini when `GEMINI_API_KEY` is set. Without it, the app falls back to the old heuristic templates.
 - OAuth connections are also persisted in `.data/inbox.json` so `/api/inbox/sync/all` and webhook handlers can refresh tokens without an active browser session.
 - The local app "cache" and persisted inbox state live in `.data/inbox.json`.
-- Do not upload `.data/inbox.json` directly if you have connected a real inbox, because it may contain plaintext OAuth tokens in `connections`.
+- OAuth tokens in `connections` are encrypted at rest with AES-256-GCM when `ENCRYPTION_KEY` is set (32 random bytes, base64-encoded). Without the key, tokens fall back to plaintext (legacy MVP behavior). Even encrypted, do not share `.data/inbox.json` outside of trusted contexts.
 - A sanitized upload-safe copy can be created at `.data/inbox.upload.json`, with `accessToken` and `refreshToken` removed from all stored connections.
 - The app can clear the local cache from the UI, or you can call `DELETE /api/inbox/cache` to wipe `.data/inbox.json` back to an empty store.
 - Gmail requires `gmail.readonly`. The Google auth flow also includes standard OpenID profile scopes.
@@ -96,5 +100,5 @@ Without the `Gmail API` enabled, Google sign-in may succeed, but Gmail sync will
 - Gmail watch requires `GOOGLE_PUBSUB_TOPIC`. Microsoft Graph validation uses `MICROSOFT_WEBHOOK_URL`. Both webhook URLs must be publicly reachable in production.
 - If you want to test sync before wiring OAuth in the UI, `POST /api/inbox/sync` also accepts an `accessToken` in the request body.
 - Set `GEMINI_API_KEY` to enable real LLM output. `GEMINI_MODEL` is optional and defaults to `gemini-2.5-flash`.
-- Tokens are stored locally in plaintext in `.data/inbox.json` for this MVP. Move them into encrypted storage before production.
+- Set `ENCRYPTION_KEY` to encrypt OAuth tokens at rest in `.data/inbox.json` (AES-256-GCM, format `enc:v1:...`). Existing plaintext tokens are transparently re-encrypted on the next mutation. Rotating the key invalidates existing encrypted tokens — users will need to reconnect.
 - Search is keyword-based today. The `/api/search` route is the right insertion point for embeddings or hybrid retrieval.

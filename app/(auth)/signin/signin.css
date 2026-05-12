@@ -1,0 +1,52 @@
+/* TODO(promote-to-phase-0): Phase 0 scoped Tailwind to .inbox-page (see
+   app/inbox/inbox.css). The /signin route lives outside that scope, so it
+   needs its own Tailwind entry-point. Promote this file (or its directives)
+   into a shared spot when Phase 0 next opens a PR. */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Body background override so the full viewport is slate-950 even before
+   React hydrates. */
+body:has(.signin-page) {
+  background: #020617 !important; /* slate-950 */
+}
+
+@layer base {
+  .signin-page {
+    font-family: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    color: #e2e8f0; /* slate-200 */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Heading + paragraph margin reset — globals.css bleeds otherwise. */
+  .signin-page h1,
+  .signin-page p {
+    margin: 0;
+  }
+
+  /* Button reset — Tailwind utilities in @layer utilities still win. */
+  .signin-page button {
+    background: transparent;
+    border: none;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    text-align: left;
+    -webkit-appearance: none;
+  }
+
+  .signin-page button:focus-visible {
+    outline: 2px solid #38bdf8; /* sky-400 */
+    outline-offset: 2px;
+  }
+}

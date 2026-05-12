@@ -4,6 +4,14 @@ module.exports = {
     "./app/inbox/**/*.{js,ts,jsx,tsx}",
     "./app/preferences/**/*.{js,ts,jsx,tsx}",
     "./app/signin/**/*.{js,ts,jsx,tsx}",
+    // TODO(promote-to-phase-0): Workstream B places the signin route under the
+    // `(auth)` route group and its component under `components/auth/`, but Phase 0's
+    // globs above only cover `app/signin/**` and `components/signin/**`. Without
+    // these two extra globs Tailwind drops every class on /signin. Promote these
+    // entries into the Phase 0 list (or replace lines 6 and 9 with these) when
+    // Phase 0 next opens a PR.
+    "./app/(auth)/**/*.{js,ts,jsx,tsx}",
+    "./components/auth/**/*.{js,ts,jsx,tsx}",
     "./components/inbox/**/*.{js,ts,jsx,tsx}",
     "./components/preferences/**/*.{js,ts,jsx,tsx}",
     "./components/signin/**/*.{js,ts,jsx,tsx}",

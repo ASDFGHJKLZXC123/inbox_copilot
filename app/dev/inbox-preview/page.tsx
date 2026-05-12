@@ -10,11 +10,14 @@
 import { notFound } from "next/navigation";
 
 import "@/app/inbox/inbox.css";
-import InboxPreview from "./preview.client";
 
-export default function DevInboxPreviewPage() {
+export default async function DevInboxPreviewPage() {
+  // process.env.NEXT_PUBLIC_* is inlined at build time, so when the env var
+  // is not "true" the entire body becomes the unconditional notFound() call
+  // and the dynamic import is dead code that webpack can DCE.
   if (process.env.NEXT_PUBLIC_ENABLE_DEV_PREVIEW !== "true") {
     notFound();
   }
+  const { default: InboxPreview } = await import("./preview.client");
   return <InboxPreview />;
 }

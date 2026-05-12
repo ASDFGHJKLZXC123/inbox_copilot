@@ -20,6 +20,11 @@
  * own entry point.
  */
 
+/* Inter font — must precede Tailwind directives. The mockup uses Inter for
+   .inbox-page; without this @import the rendered inbox falls back to the
+   root layout's Geist (visible drift from mockup, outside B.3 tolerance). */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -28,4 +33,12 @@
    React hydrates (mirrors the signin route's pattern). */
 body:has(.inbox-page) {
   background: #020617 !important; /* slate-950 */
+}
+
+@layer base {
+  .inbox-page {
+    font-family: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 }

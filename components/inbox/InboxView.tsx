@@ -293,6 +293,7 @@ export function InboxView({ preview }: InboxViewProps = {}) {
     setModifying(true);
     try {
       await api.modifyThread(id, { action });
+      await runSync(activeNav); // per B.3: POST sync returns label-scoped slice; replaces threads
       showToast({
         id: `modify_${id}`,
         message: `${verb} "${selectedCard.subject}"`,
@@ -402,8 +403,23 @@ export function InboxView({ preview }: InboxViewProps = {}) {
   };
 
   const simulateInbound = async () => {
+    // Per B.3: re-triggers api.syncInbox (POST) — pulls new mail from the provider.
+    // No-op without a session (e.g. dev preview route); the panel button is gated
+    // by syncStatus anyway, but guard defensively.
+    if (!session?.user.email) return;
     setSyncStatus("refreshed");
-    await runSync(activeNav);
+    try {
+      const fresh = await api.syncInbox({
+        provider: "google",
+        email: session.user.email,
+        label: activeNav,
+      });
+      setStore(fresh);
+      setLastSyncedAt(new Date().toISOString());
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Sync failed";
+      showToast({ message, variant: "error" });
+    }
     window.setTimeout(() => setSyncStatus((s) => (s === "refreshed" ? "connected" : s)), 1800);
   };
 

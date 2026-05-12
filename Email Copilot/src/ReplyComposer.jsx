@@ -1,0 +1,75 @@
+// ReplyComposer — controlled by parent via `body`/`setBody`.
+const { useEffect: _rcUE, useRef: _rcUR } = React;
+
+function ReplyComposer({ recipientLabel, body, setBody, onDiscard, onSend, onError, sending }) {
+  const textareaRef = useRef(null);
+
+  // Auto-focus & auto-grow
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.focus({ preventScroll: true });
+    }
+  }, []);
+
+  const handleKeyDown = (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      if (body.trim()) onSend();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      tryDiscard();
+    }
+  };
+
+  const tryDiscard = () => {
+    if (body.trim().length > 0) {
+      const ok = window.confirm('Discard this reply?');
+      if (!ok) return;
+    }
+    onDiscard();
+  };
+
+  return (
+    <div className="mx-6 mb-6 rounded-lg border border-slate-800 bg-slate-900/40 overflow-hidden">
+      <div className="px-4 pt-3 pb-2 flex items-center gap-2 border-b border-slate-800/60">
+        <I.Reply size={12} className="text-slate-500" />
+        <span className="text-[11.5px] text-slate-500">Reply to</span>
+        <span className="text-[12px] text-slate-200 font-medium">{recipientLabel}</span>
+        <button
+          onClick={tryDiscard}
+          className="ml-auto text-slate-500 hover:text-slate-300"
+          aria-label="Discard reply"
+        >
+          <I.X size={14} />
+        </button>
+      </div>
+      <textarea
+        ref={textareaRef}
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder="Write a reply…"
+        rows={6}
+        className="w-full px-4 py-3 bg-transparent text-[13.5px] text-slate-100 placeholder:text-slate-600 leading-[1.7] resize-y focus:outline-none min-h-[120px] max-h-[400px]"
+        style={{ fontFeatureSettings: '"ss01"' }}
+      />
+      <div className="px-3 py-2.5 flex items-center gap-2 border-t border-slate-800/60 bg-slate-950/40">
+        <button
+          onClick={onSend}
+          disabled={!body.trim() || sending}
+          className="h-8 px-3.5 rounded-md bg-sky-400 hover:bg-sky-300 disabled:bg-slate-800 disabled:text-slate-600 text-slate-950 text-[12.5px] font-semibold flex items-center gap-1.5 transition-colors"
+        >
+          {sending ? <I.Refresh size={12} className="spin" /> : <I.Send size={12} strokeWidth={2.2} />}
+          {sending ? 'Sending…' : 'Send'}
+        </button>
+        <kbd>⌘</kbd><span className="text-[10.5px] text-slate-500 -ml-1">+</span><kbd>↵</kbd>
+        <span className="text-[10.5px] text-slate-500">to send</span>
+        <div className="ml-auto flex items-center gap-1.5 text-slate-500">
+          <button className="hover:text-slate-200 transition-colors p-1" title="Attach"><I.Paperclip size={13} /></button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+window.ReplyComposer = ReplyComposer;

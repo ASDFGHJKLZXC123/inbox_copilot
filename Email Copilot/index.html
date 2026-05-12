@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1280" />
+<title>Email Copilot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com/3.4.16"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Geist', 'ui-sans-serif', 'sans-serif'],
+          mono: ['Geist Mono', 'ui-monospace', 'monospace'],
+        },
+        colors: {
+          accent: {
+            DEFAULT: '#7dd3fc', // sky-300
+            500: '#0ea5e9',
+            600: '#0284c7',
+          },
+        },
+      },
+    },
+  };
+</script>
+<style>
+  html, body, #root { height: 100%; }
+  body {
+    background: #020617; /* slate-950 */
+    color: #e2e8f0;     /* slate-200 */
+    font-family: 'Geist', ui-sans-serif, sans-serif;
+    font-feature-settings: 'ss01', 'cv11';
+    -webkit-font-smoothing: antialiased;
+  }
+  /* Scrollbars */
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; border: 2px solid transparent; background-clip: padding-box; }
+  *::-webkit-scrollbar-thumb:hover { background: #334155; background-clip: padding-box; border: 2px solid transparent; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  /* Selection */
+  ::selection { background: rgba(125, 211, 252, 0.25); color: #f1f5f9; }
+  /* Reduce kbd */
+  kbd {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    padding: 1px 5px 2px;
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    color: #94a3b8;
+    line-height: 1;
+  }
+  /* Inline skeleton shimmer */
+  @keyframes shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+  .skeleton {
+    background: linear-gradient(90deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+    background-size: 800px 100%;
+    animation: shimmer 1.6s linear infinite;
+    border-radius: 6px;
+  }
+  /* Spinning loader */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin { animation: spin 0.9s linear infinite; }
+  /* AI sparkle pulse */
+  @keyframes sparkle {
+    0%, 100% { opacity: 0.5; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.15); }
+  }
+  .sparkle { animation: sparkle 2.4s ease-in-out infinite; }
+  /* Slide-up toast */
+  @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .toast-in { animation: toastIn 220ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+  /* Dialog */
+  @keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes dialogIn { from { opacity: 0; transform: translateY(12px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  .overlay-in { animation: overlayIn 160ms ease-out; }
+  .dialog-in { animation: dialogIn 200ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+  /* Focus ring */
+  :focus-visible { outline: none; }
+  .focus-ring:focus-visible {
+    box-shadow: 0 0 0 2px #020617, 0 0 0 4px #38bdf8;
+  }
+  /* Disable iframe focus rect */
+  iframe { color-scheme: dark; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" data-presets="react" src="src/icons.jsx"></script>
+<script type="text/babel" data-presets="react" src="src/mockData.jsx"></script>
+<script type="text/babel" data-presets="react" src="src/hooks.jsx"></script>
+<script type="text/babel" data-presets="react" src="src/Sidebar.jsx"></script>
+<script type="text/babel" data-presets="react" src="src/EmailList.jsx"></script>
+<script type="text/babel" data-presets="react" src="src/EmailMessage.jsx"></script>
+<script type="text/babel" data-presets="react" src="src/AiThreadPanel.jsx"></script>
+<script type="text/babel" data-presets="react" src="src/ReminderThreadPanel.jsx"></script>
+<script type="text/babel" data-presets="react" src="src/ReplyComposer.jsx"></script>
+<script type="text/babel" data-presets="react" src="src/EmailDetail.jsx"></script>
+<script type="text/babel" data-presets="react" src="src/ComposeDialog.jsx"></script>
+<script type="text/babel" data-presets="react" src="src/AppToast.jsx"></script>
+<script type="text/babel" data-presets="react" src="src/LiveSyncPanel.jsx"></script>
+<script type="text/babel" data-presets="react" src="src/ClearCacheAction.jsx"></script>
+<script type="text/babel" data-presets="react" src="src/InboxSearchResults.jsx"></script>
+<script type="text/babel" data-presets="react" src="src/SignInGate.jsx"></script>
+<script type="text/babel" data-presets="react" src="src/PreferencesPage.jsx"></script>
+<script type="text/babel" data-presets="react" src="src/InboxView.jsx"></script>
+<script type="text/babel" data-presets="react" src="src/App.jsx"></script>
+</body>
+</html>

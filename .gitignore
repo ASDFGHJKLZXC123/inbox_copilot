@@ -6,3 +6,4 @@ node_modules
 *.log
 .data/
 *.tsbuildinfo
+.DS_Store

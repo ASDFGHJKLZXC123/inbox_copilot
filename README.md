@@ -73,9 +73,9 @@ This code requires:
   - `openid`
   - `email`
   - `profile`
-  - `https://www.googleapis.com/auth/gmail.readonly`
+  - `https://www.googleapis.com/auth/gmail.modify`
 
-Google may also return standard userinfo scopes as part of the granted token set, but the key app-specific mailbox permission is `gmail.readonly`.
+Google may also return standard userinfo scopes as part of the granted token set, but the key app-specific mailbox permission is `gmail.modify` (read + send + label modifications; superset of `gmail.readonly`).
 
 Without the `Gmail API` enabled, Google sign-in may succeed, but Gmail sync will fail when the app calls the Gmail REST API.
 
@@ -92,7 +92,7 @@ See `docs/decisions.md` for the locked decisions (D1–D8) and the Reminder data
 - OAuth tokens in `connections` are encrypted at rest with AES-256-GCM when `ENCRYPTION_KEY` is set (32 random bytes, base64-encoded). Without the key, tokens fall back to plaintext (legacy MVP behavior). Even encrypted, do not share `.data/inbox.json` outside of trusted contexts.
 - A sanitized upload-safe copy can be created at `.data/inbox.upload.json`, with `accessToken` and `refreshToken` removed from all stored connections.
 - The app can clear the local cache from the UI, or you can call `DELETE /api/inbox/cache` to wipe `.data/inbox.json` back to an empty store.
-- Gmail requires `gmail.readonly`. The Google auth flow also includes standard OpenID profile scopes.
+- Gmail requires `gmail.modify` (covers read, send, and label modifications). The Google auth flow also includes standard OpenID profile scopes.
 - Gmail sync explicitly merges `INBOX` and `SENT` thread IDs so outbound replies are included in the local thread model.
 - Backend-only subscription routes still exist: create subscriptions with `POST /api/inbox/subscriptions`; list them with `GET /api/inbox/subscriptions`.
 - Backend-only bulk refresh still exists at `POST /api/inbox/sync/all`.

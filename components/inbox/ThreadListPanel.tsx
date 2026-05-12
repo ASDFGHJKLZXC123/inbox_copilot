@@ -1,194 +1,282 @@
 "use client";
 
-import { ArrowsClockwise, Faders, MagnifyingGlass, Sparkle } from "@phosphor-icons/react";
+import type { ReactNode, RefObject } from "react";
 
-export interface ThreadItem {
-  id: string;
-  sender: string;
-  subject: string;
-  preview: string;
-  time: string;
-  isUnread?: boolean;
-  isSelected?: boolean;
-  tags?: Array<{ label: string; type: "reminder" | "ai" | "label" }>;
-  attachments?: number;
-  draftPrefix?: boolean;
-}
+import type { NavId, ThreadCard } from "@/lib/types-ui";
+import * as I from "@/components/ui/icons";
 
-interface ThreadListPanelProps {
-  threads: ThreadItem[];
-  selectedId: string;
-  onSelect: (id: string) => void;
+import { nameOf, smartTimestamp } from "./helpers";
+
+export interface ThreadListPanelProps {
+  cards: ThreadCard[];
+  selectedThreadId: string | null;
+  setSelectedThreadId: (id: string) => void;
+  activeFilter: "all" | "unread";
+  setActiveFilter: (f: "all" | "unread") => void;
   searchQuery: string;
-  onSearchChange: (v: string) => void;
-  activeFilter: "all" | "unread" | "ai";
-  onFilterChange: (f: "all" | "unread" | "ai") => void;
+  setSearchQuery: (q: string) => void;
+  syncing: boolean;
+  onRefresh: () => void;
+  isSearchMode: boolean;
+  hasActiveReminder: (threadId: string) => boolean;
+  activeNav: NavId;
+  searchInputRef: RefObject<HTMLInputElement | null>;
 }
 
-function TagBadge({ tag }: { tag: { label: string; type: "reminder" | "ai" | "label" } }) {
-  if (tag.type === "reminder") {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-orange-50 text-orange-600 border border-orange-100">
-        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="10" strokeWidth="2" />
-          <path strokeLinecap="round" d="M12 6v6l4 2" strokeWidth="2" />
-        </svg>
-        {tag.label}
-      </span>
-    );
-  }
-  if (tag.type === "ai") {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-ai-50 text-ai-700 border border-ai-100">
-        <Sparkle size={10} />
-        {tag.label}
-      </span>
-    );
-  }
+const NAV_LABELS: Record<NavId, string> = {
+  inbox: "Inbox",
+  sent: "Sent",
+  drafts: "Drafts",
+  archive: "Archive",
+  trash: "Trash",
+};
+
+export function ThreadListPanel({
+  cards,
+  selectedThreadId,
+  setSelectedThreadId,
+  activeFilter,
+  setActiveFilter,
+  searchQuery,
+  setSearchQuery,
+  syncing,
+  onRefresh,
+  isSearchMode,
+  hasActiveReminder,
+  activeNav,
+  searchInputRef,
+}: ThreadListPanelProps) {
+  const folderLabel = NAV_LABELS[activeNav] ?? "Inbox";
+  const totalUnread = cards.reduce((s, c) => s + c.unreadCount, 0);
+
+  const filtered = activeFilter === "unread" && !isSearchMode
+    ? cards.filter((c) => c.unreadCount > 0)
+    : cards;
+
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-600 border border-blue-100">
-      {tag.label}
-    </span>
+    <div className="flex-1 flex flex-col min-h-0">
+      {/* Header */}
+      <div className="h-14 px-4 flex items-center gap-3 border-b border-slate-800/80">
+        <h2 className="text-[14px] font-semibold text-slate-100 flex items-baseline gap-2">
+          {folderLabel}
+          {totalUnread > 0 && (
+            <span className="text-[12px] font-medium text-slate-500 tabular-nums">{totalUnread}</span>
+          )}
+        </h2>
+        <div className="flex-1" />
+        <button
+          onClick={onRefresh}
+          disabled={syncing}
+          className="text-slate-500 hover:text-slate-200 transition-colors disabled:opacity-50"
+          title="Refresh (R)"
+          aria-label="Refresh"
+        >
+          <I.Refresh size={14} className={syncing ? "spin" : ""} />
+        </button>
+        <button
+          className="text-slate-500 hover:text-slate-200"
+          title="More"
+          aria-label="More options"
+        >
+          <I.More size={14} />
+        </button>
+      </div>
+
+      {/* Search + filter */}
+      <div className="px-3 pt-3 pb-2.5 border-b border-slate-800/60 space-y-2.5">
+        <div className="relative">
+          <I.Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search mail"
+            className="w-full h-8 pl-8 pr-14 bg-slate-900 border border-slate-800 rounded-md text-[12.5px] text-slate-200 placeholder:text-slate-500 focus:border-slate-700 focus:bg-slate-900 focus-ring transition-colors"
+          />
+          <kbd className="absolute right-2 top-1/2 -translate-y-1/2">/</kbd>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <FilterChip
+            active={activeFilter === "all"}
+            onClick={() => setActiveFilter("all")}
+            disabled={isSearchMode}
+          >
+            All
+          </FilterChip>
+          <FilterChip
+            active={activeFilter === "unread"}
+            onClick={() => setActiveFilter("unread")}
+            disabled={isSearchMode}
+          >
+            Unread{" "}
+            {totalUnread > 0 && (
+              <span className="ml-1 tabular-nums text-slate-500">{totalUnread}</span>
+            )}
+          </FilterChip>
+          {isSearchMode && (
+            <span className="ml-auto text-[10.5px] text-slate-500 italic">
+              Filters paused — search active
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* List */}
+      <div className="flex-1 overflow-y-auto">
+        {syncing && cards.length === 0 ? (
+          <ThreadSkeletonList />
+        ) : filtered.length === 0 ? (
+          <EmptyState filter={activeFilter} />
+        ) : (
+          <ul>
+            {filtered.map((card) => (
+              <ThreadRow
+                key={card.id}
+                card={card}
+                selected={card.id === selectedThreadId}
+                onSelect={() => setSelectedThreadId(card.id)}
+                hasReminder={hasActiveReminder(card.id)}
+              />
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
   );
 }
 
-export function ThreadListPanel({
-  threads,
-  selectedId,
+function FilterChip({
+  active,
+  onClick,
+  disabled,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  disabled: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={
+        "h-6 px-2.5 rounded-full text-[11.5px] font-medium transition-colors flex items-center " +
+        (disabled
+          ? "bg-slate-900/50 text-slate-600 border border-slate-800/60"
+          : active
+            ? "bg-slate-200 text-slate-950 hover:bg-slate-100"
+            : "bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200 hover:border-slate-700")
+      }
+    >
+      {children}
+    </button>
+  );
+}
+
+function ThreadRow({
+  card,
+  selected,
   onSelect,
-  searchQuery,
-  onSearchChange,
-  activeFilter,
-  onFilterChange,
-}: ThreadListPanelProps) {
-  const filtered = threads.filter((t) => {
-    if (activeFilter === "unread") return t.isUnread;
-    if (activeFilter === "ai") return t.tags?.some((tag) => tag.type === "ai");
-    return true;
-  });
+  hasReminder,
+}: {
+  card: ThreadCard;
+  selected: boolean;
+  onSelect: () => void;
+  hasReminder: boolean;
+}) {
+  const unread = card.unreadCount > 0;
+  const lastFrom = nameOf(card.participants[0] ?? "");
+  const others = card.participants.length > 2 ? ` +${card.participants.length - 2}` : "";
 
   return (
-    <div className="w-[380px] bg-white border-r border-slate-200 flex flex-col h-full flex-shrink-0 z-10 font-sans">
-      {/* Header */}
-      <div className="p-4 border-b border-slate-200 bg-white/95 backdrop-blur-sm z-10">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-semibold text-slate-900">Inbox</h1>
-          <div className="flex gap-2">
-            <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-md transition-colors" title="Filter">
-              <Faders size={18} />
-            </button>
-            <button className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-md transition-colors" title="Refresh">
-              <ArrowsClockwise size={18} />
-            </button>
-          </div>
+    <li>
+      <button
+        role="button"
+        aria-selected={selected}
+        onClick={onSelect}
+        className={
+          "group relative w-full px-4 py-3 text-left border-b border-slate-900/80 transition-colors " +
+          (selected ? "bg-slate-900/80" : "hover:bg-slate-900/50")
+        }
+      >
+        {selected && <span className="absolute left-0 top-2 bottom-2 w-[2px] bg-sky-400 rounded-r" />}
+        {unread && !selected && (
+          <span className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-sky-400" />
+        )}
+
+        <div className="flex items-baseline gap-2 mb-1">
+          <span
+            className={
+              "text-[12.5px] truncate flex-1 " +
+              (unread ? "text-slate-100 font-semibold" : "text-slate-300 font-medium")
+            }
+          >
+            {lastFrom}
+            {others && <span className="text-slate-500">{others}</span>}
+          </span>
+          <span className="text-[10.5px] text-slate-500 tabular-nums flex-shrink-0">
+            {smartTimestamp(card.lastMessageAt)}
+          </span>
         </div>
-
-        {/* Search */}
-        <div className="relative group">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <MagnifyingGlass size={16} className="text-slate-400 group-focus-within:text-brand-500 transition-colors" />
-          </div>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="block w-full pl-10 pr-12 py-2 border border-slate-200 rounded-lg leading-5 bg-slate-50 placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm transition-all"
-            placeholder="Search emails, AI summaries, people..."
-          />
-          <div className="absolute inset-y-0 right-0 pr-2 flex items-center">
-            <span className="text-xs text-slate-400 bg-white border border-slate-200 rounded px-1.5 py-0.5">
-              ⌘K
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Filter tabs */}
-      <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between text-xs font-medium text-slate-500">
-        <div className="flex items-center gap-4">
-          {(["all", "unread", "ai"] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => onFilterChange(f)}
-              className={`transition-colors flex items-center gap-1 ${
-                activeFilter === f ? "text-slate-900 font-semibold" : "hover:text-slate-900"
-              }`}
-            >
-              {f === "ai" && <Sparkle size={12} className="text-ai-600" />}
-              {f === "all" ? "All" : f === "unread" ? "Unread" : "AI Tagged"}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Thread list */}
-      <div className="flex-1 overflow-y-auto inbox-scroll">
-        {filtered.map((thread) => {
-          const isSelected = thread.id === selectedId;
-
-          if (isSelected) {
-            return (
-              <div
-                key={thread.id}
-                onClick={() => onSelect(thread.id)}
-                className="relative px-4 py-4 border-b border-brand-200 bg-brand-50 cursor-pointer transition-colors border-l-4 border-l-brand-500"
-              >
-                <div className="pl-1">
-                  <div className="flex justify-between items-baseline mb-1">
-                    <span className="text-sm font-medium text-slate-900 truncate pr-2">{thread.sender}</span>
-                    <span className="text-xs text-slate-500 whitespace-nowrap">{thread.time}</span>
-                  </div>
-                  <div className="text-sm font-medium text-slate-900 mb-1 truncate">{thread.subject}</div>
-                  <p className="text-sm text-slate-500 line-clamp-2 leading-relaxed">{thread.preview}</p>
-                  {thread.tags && thread.tags.length > 0 && (
-                    <div className="mt-2 flex items-center gap-2 flex-wrap">
-                      {thread.tags.map((tag, i) => <TagBadge key={i} tag={tag} />)}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
+        <div
+          className={
+            "text-[12.5px] truncate mb-0.5 " +
+            (unread ? "text-slate-100 font-medium" : "text-slate-300")
           }
+        >
+          {card.subject}
+        </div>
+        <div className="text-[11.5px] text-slate-500 line-clamp-1 leading-relaxed">{card.preview}</div>
+        {(hasReminder || card.hasAttachment) && (
+          <div className="mt-1.5 flex items-center gap-1.5">
+            {hasReminder && (
+              <span className="inline-flex items-center gap-1 px-1.5 h-4 rounded text-[10px] font-medium bg-amber-400/10 text-amber-300 border border-amber-400/20">
+                <I.Clock size={9} strokeWidth={2} />
+                Follow-up
+              </span>
+            )}
+            {card.hasAttachment && (
+              <span className="inline-flex items-center gap-1 text-[10px] text-slate-500">
+                <I.Paperclip size={10} />
+              </span>
+            )}
+          </div>
+        )}
+      </button>
+    </li>
+  );
+}
 
-          return (
-            <div
-              key={thread.id}
-              onClick={() => onSelect(thread.id)}
-              className="relative px-4 py-4 border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-colors group"
-            >
-              {thread.isUnread && (
-                <div className="absolute left-1.5 top-5 w-2 h-2 rounded-full bg-brand-500" />
-              )}
-              <div className={thread.isUnread ? "pl-2" : "pl-2"}>
-                <div className="flex justify-between items-baseline mb-1">
-                  <span className={`text-sm truncate pr-2 ${thread.isUnread ? "font-bold text-slate-900" : "font-medium text-slate-700"}`}>
-                    {thread.sender}
-                  </span>
-                  <span className={`text-xs whitespace-nowrap ${thread.isUnread ? "font-medium text-brand-600" : "text-slate-500"}`}>
-                    {thread.time}
-                  </span>
-                </div>
-                <div className={`text-sm mb-1 truncate ${thread.isUnread ? "font-semibold text-slate-900" : "font-medium text-slate-800"}`}>
-                  {thread.subject}
-                </div>
-                <p className="text-sm text-slate-500 line-clamp-2 leading-relaxed">
-                  {thread.draftPrefix && <span className="text-red-500 font-medium">[Draft] </span>}
-                  {thread.preview}
-                </p>
-                {(thread.tags?.length || thread.attachments) ? (
-                  <div className="mt-2 flex items-center gap-2 flex-wrap">
-                    {thread.tags?.map((tag, i) => <TagBadge key={i} tag={tag} />)}
-                    {thread.attachments && (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-500">
-                        📎 {thread.attachments}
-                      </span>
-                    )}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          );
-        })}
+function ThreadSkeletonList() {
+  return (
+    <ul className="px-4 py-3 space-y-4">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <li key={i} className="space-y-1.5">
+          <div className="flex items-center gap-2">
+            <div className="skeleton h-3 w-24" />
+            <div className="ml-auto skeleton h-2 w-8" />
+          </div>
+          <div className="skeleton h-3 w-full" />
+          <div className="skeleton h-2 w-[80%]" />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function EmptyState({ filter }: { filter: "all" | "unread" }) {
+  return (
+    <div className="h-full flex flex-col items-center justify-center px-8 py-16 text-center">
+      <div className="w-10 h-10 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-600 mb-3">
+        <I.Inbox size={18} />
+      </div>
+      <div className="text-[13px] font-medium text-slate-300 mb-1">All caught up</div>
+      <div className="text-[12px] text-slate-500 max-w-[220px] leading-relaxed">
+        {filter === "unread"
+          ? "No unread mail in this folder."
+          : "Nothing here yet. New mail will appear automatically."}
       </div>
     </div>
   );

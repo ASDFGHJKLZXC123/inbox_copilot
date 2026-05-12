@@ -1,19 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { parseBody } from "@/lib/api";
-import { getThreadMessages, reviseDraft } from "@/lib/copilot";
-import { getStore } from "@/lib/db";
-import { ReviseRequestSchema } from "@/lib/schemas";
+import { getStore, sanitizeStore, updateThreadStatus } from "@/lib/db";
+import { ThreadStatusUpdateSchema } from "@/lib/schemas";
 
-export async function POST(
+export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ threadId: string }> }
 ): Promise<NextResponse> {
   const { threadId } = await context.params;
 
-  const parsed = await parseBody(request, ReviseRequestSchema);
+  const parsed = await parseBody(request, ThreadStatusUpdateSchema);
   if (parsed.error) return parsed.error;
-  const { draft, instruction } = parsed.data;
+  const { status, waitingOn } = parsed.data;
 
   const store = await getStore();
   const thread = store.threads.find((item) => item.id === threadId);
@@ -22,6 +21,6 @@ export async function POST(
     return NextResponse.json({ error: "thread not found" }, { status: 404 });
   }
 
-  const result = await reviseDraft(thread, getThreadMessages(store, threadId), draft, instruction);
-  return NextResponse.json(result);
+  const updated = await updateThreadStatus(threadId, status, waitingOn);
+  return NextResponse.json(sanitizeStore(updated));
 }

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { parseBody } from "@/lib/api";
 import { addReminder, getStore } from "@/lib/db";
+import { ReminderCreateSchema } from "@/lib/schemas";
 
 function makeId(): string {
   return `reminder_${Math.random().toString(36).slice(2, 10)}`;
@@ -12,21 +14,15 @@ export async function GET(): Promise<NextResponse> {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const body = (await request.json()) as {
-    threadId?: string;
-    dueAt?: string;
-    reason?: string;
-  };
-
-  if (!body.threadId || !body.dueAt || !body.reason) {
-    return NextResponse.json({ error: "threadId, dueAt, and reason are required" }, { status: 400 });
-  }
+  const parsed = await parseBody(request, ReminderCreateSchema);
+  if (parsed.error) return parsed.error;
+  const { threadId, dueAt, reason } = parsed.data;
 
   const store = await addReminder({
     id: makeId(),
-    threadId: body.threadId,
-    dueAt: body.dueAt,
-    reason: body.reason,
+    threadId,
+    dueAt,
+    reason,
     completed: false
   });
 

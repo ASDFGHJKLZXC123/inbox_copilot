@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { searchThreads } from "@/lib/copilot";
-import { getStore } from "@/lib/db";
+import { parseBody } from "@/lib/api";
+import { getStore, searchThreads } from "@/lib/db";
+import { SearchRequestSchema } from "@/lib/schemas";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const body = (await request.json()) as { query?: string };
-
-  if (!body.query) {
-    return NextResponse.json({ error: "query is required" }, { status: 400 });
-  }
+  const parsed = await parseBody(request, SearchRequestSchema);
+  if (parsed.error) return parsed.error;
+  const { query } = parsed.data;
 
   const store = await getStore();
-  const results = searchThreads(store, body.query).map((result) => ({
+  const results = searchThreads(store, query).map((result) => ({
     ...result,
     unreadCount: store.messages.filter((message) => message.threadId === result.thread.id && message.isUnread).length
   }));

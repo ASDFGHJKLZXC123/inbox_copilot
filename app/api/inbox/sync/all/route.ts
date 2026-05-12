@@ -24,7 +24,7 @@ export async function POST(): Promise<NextResponse> {
           };
         }
 
-        const synced = await syncProviderInbox(connection.provider, connection.email, activeConnection.accessToken);
+        const synced = await syncProviderInbox(connection.provider, connection.email, activeConnection.accessToken, "inbox");
         await upsertSyncedInbox(synced);
 
         return {

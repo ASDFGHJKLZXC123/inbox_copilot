@@ -223,13 +223,19 @@ export function InboxView({ preview }: InboxViewProps = {}) {
     setReminderOpen(false);
   }, [selectedThreadId]);
 
-  // Sync / refresh — routed through api
+  // Sync / refresh — routed through api. Per B.3 line 1015, post-modify sync
+  // should be POST (`api.syncInbox`) so the provider state is re-pulled and
+  // returned as a label-scoped slice. When a real session is present we POST;
+  // when one is missing (dev preview, no provider creds yet) we fall back to
+  // GET `api.getInbox` so the helper still works for Tier 2 verification.
   const runSync = useCallback(
     async (label: NavId) => {
       setSyncing(true);
       try {
-        // Use GET inbox for a no-cost refresh. POST sync requires provider credentials.
-        const fresh = await api.getInbox();
+        const email = session?.user.email;
+        const fresh = email
+          ? await api.syncInbox({ provider: "google", email, label })
+          : await api.getInbox();
         setStore(fresh);
         showToast({
           id: "sync",
@@ -245,7 +251,7 @@ export function InboxView({ preview }: InboxViewProps = {}) {
         setSyncing(false);
       }
     },
-    [showToast],
+    [session, showToast],
   );
 
   const onPrev = () => {

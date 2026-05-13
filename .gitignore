@@ -7,3 +7,7 @@ node_modules
 .data/
 *.tsbuildinfo
 .DS_Store
+
+# Playwright artifacts from tests/contrast/
+test-results/
+playwright-report/

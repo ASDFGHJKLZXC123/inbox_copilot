@@ -60,12 +60,17 @@ body:has(.inbox-page) {
     margin: 0;
   }
 
-  .inbox-page ul {
-    list-style: disc;
-    padding-left: 1.25rem;
-  }
-  .inbox-page li {
-    display: list-item;
+  /* Tailwind preflight is disabled project-wide in tailwind.config.js
+     (`corePlugins.preflight: false`), so the browser-default `list-style: disc`
+     on `<ul>` shows through. The agent-ported sidebar nav and thread list use
+     `<ul>/<li>` purely for grouping (no bullets intended), so explicitly
+     remove the browser default. Margin/padding are reset for the same reason
+     — preflight isn't doing it for us. */
+  .inbox-page ul,
+  .inbox-page ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
   }
 
   .inbox-page button {

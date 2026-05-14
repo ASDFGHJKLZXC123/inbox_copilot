@@ -130,7 +130,7 @@ export function EmailDetailPanel({
   };
 
   return (
-    <section className="flex-1 min-w-0 flex flex-col bg-slate-950">
+    <section className="flex-1 min-w-0 min-h-0 flex flex-col bg-slate-950">
       {/* Auth error banner */}
       {banner && (
         <div className="px-4 py-2 bg-amber-400/10 border-b border-amber-400/20 flex items-center gap-2 text-[11.5px] text-amber-200">

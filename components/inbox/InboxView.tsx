@@ -223,13 +223,54 @@ export function InboxView({ preview }: InboxViewProps = {}) {
     setReminderOpen(false);
   }, [selectedThreadId]);
 
-  // Sync / refresh — routed through api
+  // Mark-read-on-open (A.7: "opening unread thread marks it read").
+  // Optimistic local update; background API call with no rollback toast —
+  // if the server mark-read fails, the next /api/inbox/sync reconciles.
+  //
+  // Deps are intentionally [selectedCard?.id, preview] only — NOT unreadCount.
+  // The toolbar's "Mark unread" action (onModify) flips unreadCount back to
+  // > 0 on the currently-open thread; if unreadCount were a dep, this effect
+  // would re-fire and immediately re-mark-read, breaking the toolbar action.
+  // unreadCount is read from the closure at effect-run time, so the guard
+  // still skips when the thread is already read.
+  useEffect(() => {
+    if (preview) return;
+    if (!selectedCard) return;
+    if (selectedCard.unreadCount === 0) return;
+    const id = selectedCard.id;
+    setStore((prev) =>
+      prev
+        ? {
+            ...prev,
+            messages: prev.messages.map((m) =>
+              m.threadId === id ? { ...m, isUnread: false } : m,
+            ),
+          }
+        : prev,
+    );
+    let cancelled = false;
+    api.modifyThread(id, { action: "mark-read" }).catch((err) => {
+      if (!cancelled) console.warn("[mark-read-on-open] background call failed:", err);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCard?.id, preview]);
+
+  // Sync / refresh — routed through api. Per B.3 line 1015, post-modify sync
+  // should be POST (`api.syncInbox`) so the provider state is re-pulled and
+  // returned as a label-scoped slice. When a real session is present we POST;
+  // when one is missing (dev preview, no provider creds yet) we fall back to
+  // GET `api.getInbox` so the helper still works for Tier 2 verification.
   const runSync = useCallback(
     async (label: NavId) => {
       setSyncing(true);
       try {
-        // Use GET inbox for a no-cost refresh. POST sync requires provider credentials.
-        const fresh = await api.getInbox();
+        const email = session?.user.email;
+        const fresh = email
+          ? await api.syncInbox({ provider: "google", email, label })
+          : await api.getInbox();
         setStore(fresh);
         showToast({
           id: "sync",
@@ -245,7 +286,7 @@ export function InboxView({ preview }: InboxViewProps = {}) {
         setSyncing(false);
       }
     },
-    [showToast],
+    [session, showToast],
   );
 
   const onPrev = () => {
@@ -496,7 +537,7 @@ export function InboxView({ preview }: InboxViewProps = {}) {
       />
 
       {/* Middle column: list or search results */}
-      <section className="w-[392px] flex-shrink-0 border-r border-slate-800/80 bg-slate-950 flex flex-col">
+      <section className="w-[392px] flex-shrink-0 border-r border-slate-800/80 bg-slate-950 flex flex-col min-h-0">
         {!isSearchMode ? (
           <ThreadListPanel
             cards={cards}
@@ -568,7 +609,7 @@ export function InboxView({ preview }: InboxViewProps = {}) {
       </section>
 
       {/* Detail */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col">
         {/* Top status bar */}
         <div className="h-9 px-4 flex items-center gap-2 border-b border-slate-800/80 bg-slate-950">
           <span className="text-[11px] text-slate-500">

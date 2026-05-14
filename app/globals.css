@@ -345,7 +345,7 @@ h2 {
   }
 }
 
-/* ── Email Copilot mockup foundation (Phase 0) ──────────────────────────────
+/* ── email-copilot-mockup foundation (Phase 0) ──────────────────────────────
    Additive only. Body bg/font are NOT overridden here — `app/inbox/inbox.css`
    continues to scope the dark theme via `body:has(.inbox-page)`. Workstream A
    owns migrating that selector when the legacy inbox is replaced. */

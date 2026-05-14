@@ -1,5 +1,5 @@
 // Capture a 1280px viewport screenshot of the dev inbox preview route and
-// the mockup `Email Copilot/index.html`. Output to tests/visual/inbox/.
+// the mockup `.archive/email-copilot-mockup/index.html`. Output to tests/visual/inbox/.
 //
 // Usage: node tests/visual/inbox/capture.mjs
 // Assumes `npm run dev` is running on PORT (default 3000) and that

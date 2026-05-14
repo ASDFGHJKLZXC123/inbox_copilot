@@ -21,9 +21,12 @@ export interface EmailMessageProps {
   isFirst?: boolean;
 }
 
-// Trusted-sender allowlist. In a real app this would persist; here it's per-tab.
+// Trusted-sender allowlist. In a real app this would persist; here it's per-tab,
+// seeded empty so real users don't get demo-mockup senders silently treated as
+// trusted in prod (the prior `["halcyon.io","kestrel.vc","latham.com"]` seed
+// came from .archive/email-copilot-mockup/src/mockData.jsx and leaked through the port).
 const TRUSTED_SENDERS = new Set<string>();
-const TRUSTED_DOMAINS = new Set<string>(["halcyon.io", "kestrel.vc", "latham.com"]);
+const TRUSTED_DOMAINS = new Set<string>();
 
 const REMOTE_IMG_RE = /<img\b[^>]*\bsrc\s*=\s*["'](https?:[^"']+)["'][^>]*>/gi;
 
@@ -199,7 +202,7 @@ function HtmlEnvelope({ html, blockImages }: { html: string; blockImages: boolea
   }, [processed]);
 
   return (
-    <div className="relative rounded-lg border border-slate-800 bg-slate-950/40 p-3 max-w-[760px]">
+    <div className="relative rounded-lg border border-slate-800 bg-slate-950/40 p-3 max-w-[760px] mx-auto">
       <div
         aria-hidden
         className="pointer-events-none absolute left-3 right-3 top-3 h-3 rounded-t-md"
@@ -289,16 +292,16 @@ function ImageBlockedPill({
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full mt-1.5 z-40 w-[240px] bg-slate-900 border border-slate-800 rounded-lg shadow-2xl shadow-black/40 overflow-hidden py-1">
+          <div className="absolute left-0 top-full mt-1.5 z-40 w-[220px] bg-slate-900 border border-slate-800 rounded-lg shadow-2xl shadow-black/40 overflow-hidden py-1">
             <PillItem
-              label="Load images this time"
+              label="Load once"
               onClick={() => {
                 onLoadOnce();
                 setOpen(false);
               }}
             />
             <PillItem
-              label={`Always load from ${fromEmail}`}
+              label="Always trust sender"
               subtle
               onClick={() => {
                 onAllowSender();
@@ -306,7 +309,7 @@ function ImageBlockedPill({
               }}
             />
             <PillItem
-              label={`Always load from @${domain}`}
+              label="Always trust domain"
               subtle
               onClick={() => {
                 onAllowDomain();

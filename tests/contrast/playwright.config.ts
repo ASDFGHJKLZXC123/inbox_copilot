@@ -17,6 +17,12 @@ export default defineConfig({
   testDir: ".",
   testMatch: "**/*.test.ts",
 
+  // Each test does a full-page axe scan after waiting for networkidle (which
+  // includes the Google Fonts Inter @import in inbox.css). The default 30s
+  // is tight on a cold-start dev server; 60s gives headroom without hiding
+  // genuine hangs.
+  timeout: 60_000,
+
   // Each test gets one attempt in normal runs; CI can override with
   // the PLAYWRIGHT_RETRIES env var if flakiness is ever introduced.
   retries: process.env.CI ? 1 : 0,

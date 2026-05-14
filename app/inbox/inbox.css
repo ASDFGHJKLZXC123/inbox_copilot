@@ -1,28 +1,26 @@
-/* Inbox-scoped Tailwind entry point.
+/* Inbox-scoped Tailwind entry point + globals.css bleed-through resets.
  *
- * Background: Phase 0 left Tailwind directives out of `app/globals.css` and
- * relied on each route subtree to ship its own scoped Tailwind entry (see
- * `app/(auth)/signin/signin.css` for the B precedent). This file is the A
- * equivalent — kept minimal, no resets beyond what the body-bg override
- * needs. The legacy inbox.css's ~80 lines of resets were tied to the old
- * inbox UI and are no longer required (every new inbox surface sets its own
- * bg-slate-950 / text-slate-200 on a container div).
+ * Why this file exists:
+ *   1. Phase 0 left @tailwind directives out of `app/globals.css`; route
+ *      subtrees ship their own entry (signin.css, preferences.css, here).
+ *   2. globals.css applies cream/serif body styling and bare element rules
+ *      (body bg gradient, h1/h2/h3/p margins, button/input font-family).
+ *      Inside the `.inbox-page` subtree those bleed through unless undone,
+ *      producing cream rounded backgrounds on every <button>, oversized
+ *      headings, and Iowan-Old-Style serif text. Visible on /dev/inbox-preview
+ *      (axe also catches the resulting WCAG contrast failures via
+ *      `npm run test:contrast`).
  *
- * The brief says "DELETE app/inbox/inbox.css" — that referred to the LEGACY
- * file's resets/scope, which are gone. This 5-line shim only loads Tailwind
- * for the route subtree and forces the body background so the slate-950
- * surface paints before React hydrates. Without this shim Tailwind utility
- * classes inside `components/inbox/**` produce zero CSS and the entire port
- * renders unstyled (verified empirically).
+ * The reset block below is restored from port-base-snapshot — the legacy
+ * inbox.css's "Scoped reset: undo globals.css bleed-through". The earlier
+ * Workstream A port removed these claiming they were no longer required;
+ * the codex pre-merge pass + contrast test surfaced that they ARE required.
  *
- * Phase 0 follow-up (out of scope here): promote `@tailwind base/components/
- * utilities` into `app/globals.css` so route subtrees don't each need their
- * own entry point.
+ * Phase 0 follow-up (out of scope here): promote @tailwind directives into
+ * `app/globals.css` and remove globals.css's bare-element bleed (panels,
+ * h*, body font) so route subtrees don't each need their own reset block.
  */
 
-/* Inter font — must precede Tailwind directives. The mockup uses Inter for
-   .inbox-page; without this @import the rendered inbox falls back to the
-   root layout's Geist (visible drift from mockup, outside B.3 tolerance). */
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
 
 @tailwind base;
@@ -35,10 +33,89 @@ body:has(.inbox-page) {
   background: #020617 !important; /* slate-950 */
 }
 
+/* Resets live inside @layer base so @layer utilities (Tailwind bg-*, text-*,
+   flex, padding, etc.) always win the cascade. Without the @layer wrapper,
+   unlayered CSS beats layered utilities regardless of specificity. */
 @layer base {
   .inbox-page {
     font-family: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    color: #e2e8f0; /* slate-200 */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+
+  .inbox-page h1,
+  .inbox-page h2,
+  .inbox-page h3,
+  .inbox-page h4 {
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+    margin: 0;
+  }
+
+  .inbox-page p {
+    margin: 0;
+  }
+
+  /* Tailwind preflight is disabled project-wide in tailwind.config.js
+     (`corePlugins.preflight: false`), so the browser-default `list-style: disc`
+     on `<ul>` shows through. The agent-ported sidebar nav and thread list use
+     `<ul>/<li>` purely for grouping (no bullets intended), so explicitly
+     remove the browser default. Margin/padding are reset for the same reason
+     — preflight isn't doing it for us. */
+  .inbox-page ul,
+  .inbox-page ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .inbox-page button {
+    background: transparent;
+    border: none;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    text-align: left;
+    -webkit-appearance: none;
+  }
+
+  .inbox-page button:focus-visible {
+    outline: 2px solid #38bdf8; /* sky-400 */
+    outline-offset: 2px;
+  }
+
+  .inbox-page [role="button"]:focus-visible {
+    outline: 2px solid #38bdf8; /* sky-400 */
+    outline-offset: -2px;
+  }
+
+  .inbox-page textarea,
+  .inbox-page input[type="text"] {
+    font: inherit;
+    box-sizing: border-box;
+    -webkit-appearance: none;
+  }
+}
+
+/* Scrollbar styling — pseudo-element selectors can't go inside @layer. */
+.inbox-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.inbox-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.inbox-scroll::-webkit-scrollbar-thumb {
+  background: #334155; /* slate-700 */
+  border-radius: 10px;
+}
+.inbox-scroll::-webkit-scrollbar-thumb:hover {
+  background: #475569; /* slate-600 */
 }

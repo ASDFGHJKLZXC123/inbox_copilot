@@ -12,7 +12,7 @@
     "test:unit": "vitest run lib",
     "test:api": "vitest run tests/api --passWithNoTests",
     "test:contrast": "playwright test --config=tests/contrast/playwright.config.ts",
-    "test:contrast:ci": "concurrently --kill-others --success first \"next dev\" \"wait-on http://localhost:3000 && npm run test:contrast\"",
+    "test:contrast:ci": "concurrently --kill-others --success first \"NEXT_PUBLIC_ENABLE_DEV_PREVIEW=true next dev\" \"wait-on http://localhost:3000 && npm run test:contrast\"",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node scripts/migrate.mjs",
     "db:studio": "drizzle-kit studio"

@@ -122,7 +122,7 @@ function SearchResultRow({
             {nameOf(thread.participants[0] ?? "")}
           </span>
           <span
-            className="text-[10px] tabular-nums text-slate-500 px-1.5 h-4 rounded bg-slate-800 flex items-center"
+            className="text-[10px] tabular-nums text-slate-400 px-1.5 h-4 rounded bg-slate-800 flex items-center"
             title="Matches in thread"
           >
             {score}

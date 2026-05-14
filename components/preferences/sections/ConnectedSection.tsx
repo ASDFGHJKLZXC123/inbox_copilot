@@ -53,7 +53,7 @@ function ConnectionRow({
             </span>
           )}
         </div>
-        <div className="text-[11.5px] text-slate-500 mt-0.5">{desc}</div>
+        <div className="text-[11.5px] text-slate-400 mt-0.5">{desc}</div>
         {meta && <div className="text-[10.5px] text-slate-600 font-mono mt-1">{meta}</div>}
       </div>
       <button
@@ -152,7 +152,7 @@ export function ConnectedSection({
     >
       <Card>
         {loading && (
-          <div className="px-5 py-6 text-[12px] text-slate-500">Loading connections…</div>
+          <div className="px-5 py-6 text-[12px] text-slate-400">Loading connections…</div>
         )}
         {error && (
           <div className="px-5 py-3 text-[12px] text-amber-300 border-b border-slate-800/60">
@@ -160,7 +160,7 @@ export function ConnectedSection({
           </div>
         )}
         {!loading && activeRows.length === 0 && (
-          <div className="px-5 py-4 text-[12px] text-slate-500 border-b border-slate-800/60">
+          <div className="px-5 py-4 text-[12px] text-slate-400 border-b border-slate-800/60">
             No mail provider connected yet. Sign in with Google to enable Gmail sync.
           </div>
         )}

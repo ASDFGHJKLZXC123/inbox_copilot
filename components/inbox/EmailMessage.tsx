@@ -90,17 +90,17 @@ export function EmailMessage({ message, expanded, onToggle, isFirst }: EmailMess
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2 flex-wrap">
             <span className="text-[13px] font-semibold text-slate-100">{fromName}</span>
-            <span className="text-[11.5px] text-slate-500 font-mono truncate">{fromEmail}</span>
+            <span className="text-[11.5px] text-slate-400 font-mono truncate">{fromEmail}</span>
             {isHtml && (
               <span className="inline-flex items-center gap-1 px-1.5 h-4 rounded text-[9.5px] font-medium bg-slate-800 text-slate-400 border border-slate-700 uppercase tracking-wide">
                 HTML
               </span>
             )}
-            <span className="ml-auto text-[11px] text-slate-500 tabular-nums flex-shrink-0">
+            <span className="ml-auto text-[11px] text-slate-400 tabular-nums flex-shrink-0">
               {fullTimestamp(message.receivedAt)}
             </span>
           </div>
-          <div className="mt-0.5 text-[11.5px] text-slate-500 flex items-center gap-1.5">
+          <div className="mt-0.5 text-[11.5px] text-slate-400 flex items-center gap-1.5">
             <span>to {message.to.map((t) => nameOf(t)).join(", ")}</span>
           </div>
           {!expanded && (
@@ -157,9 +157,9 @@ export function EmailMessage({ message, expanded, onToggle, isFirst }: EmailMess
                   onClick={(e) => e.preventDefault()}
                   className="group inline-flex items-center gap-2 h-8 pl-2.5 pr-3 bg-slate-900 border border-slate-800 rounded-md text-[11.5px] hover:border-slate-700 hover:bg-slate-900/80 transition-colors"
                 >
-                  <I.Paperclip size={12} className="text-slate-500" />
+                  <I.Paperclip size={12} className="text-slate-400" />
                   <span className="text-slate-200 font-medium">{a.filename}</span>
-                  <span className="text-slate-500 tabular-nums">· {formatBytes(a.size)}</span>
+                  <span className="text-slate-400 tabular-nums">· {formatBytes(a.size)}</span>
                 </a>
               ))}
             </div>
@@ -256,7 +256,7 @@ function ViewModeSwitcher({
               ? "bg-slate-800 text-slate-100"
               : m.disabled
                 ? "text-slate-700 cursor-not-allowed"
-                : "text-slate-500 hover:text-slate-300")
+                : "text-slate-400 hover:text-slate-300")
           }
         >
           {m.label}
@@ -317,7 +317,7 @@ function ImageBlockedPill({
               }}
             />
             <div className="border-t border-slate-800 mt-1 pt-1">
-              <div className="px-3 py-1.5 text-[10.5px] text-slate-500 leading-relaxed">
+              <div className="px-3 py-1.5 text-[10.5px] text-slate-400 leading-relaxed">
                 Remote images can track when you open mail. Block by default for unknown senders.
               </div>
             </div>

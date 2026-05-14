@@ -60,21 +60,21 @@ export function ThreadListPanel({
         <h2 className="text-[14px] font-semibold text-slate-100 flex items-baseline gap-2">
           {folderLabel}
           {totalUnread > 0 && (
-            <span className="text-[12px] font-medium text-slate-500 tabular-nums">{totalUnread}</span>
+            <span className="text-[12px] font-medium text-slate-400 tabular-nums">{totalUnread}</span>
           )}
         </h2>
         <div className="flex-1" />
         <button
           onClick={onRefresh}
           disabled={syncing}
-          className="text-slate-500 hover:text-slate-200 transition-colors disabled:opacity-50"
+          className="text-slate-400 hover:text-slate-200 transition-colors disabled:opacity-50"
           title="Refresh (R)"
           aria-label="Refresh"
         >
           <I.Refresh size={14} className={syncing ? "spin" : ""} />
         </button>
         <button
-          className="text-slate-500 hover:text-slate-200"
+          className="text-slate-400 hover:text-slate-200"
           title="More"
           aria-label="More options"
         >
@@ -85,14 +85,14 @@ export function ThreadListPanel({
       {/* Search + filter */}
       <div className="px-3 pt-3 pb-2.5 border-b border-slate-800/60 space-y-2.5">
         <div className="relative">
-          <I.Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+          <I.Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             ref={searchInputRef}
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search mail"
-            className="w-full h-8 pl-8 pr-14 bg-slate-900 border border-slate-800 rounded-md text-[12.5px] text-slate-200 placeholder:text-slate-500 focus:border-slate-700 focus:bg-slate-900 focus-ring transition-colors"
+            className="w-full h-8 pl-8 pr-14 bg-slate-900 border border-slate-800 rounded-md text-[12.5px] text-slate-200 placeholder:text-slate-400 focus:border-slate-700 focus:bg-slate-900 focus-ring transition-colors"
           />
           <kbd className="absolute right-2 top-1/2 -translate-y-1/2">/</kbd>
         </div>
@@ -111,11 +111,11 @@ export function ThreadListPanel({
           >
             Unread{" "}
             {totalUnread > 0 && (
-              <span className="ml-1 tabular-nums text-slate-500">{totalUnread}</span>
+              <span className="ml-1 tabular-nums text-slate-400">{totalUnread}</span>
             )}
           </FilterChip>
           {isSearchMode && (
-            <span className="ml-auto text-[10.5px] text-slate-500 italic">
+            <span className="ml-auto text-[10.5px] text-slate-400 italic">
               Filters paused — search active
             </span>
           )}
@@ -214,9 +214,9 @@ function ThreadRow({
             }
           >
             {lastFrom}
-            {others && <span className="text-slate-500">{others}</span>}
+            {others && <span className="text-slate-400">{others}</span>}
           </span>
-          <span className="text-[10.5px] text-slate-500 tabular-nums flex-shrink-0">
+          <span className="text-[10.5px] text-slate-400 tabular-nums flex-shrink-0">
             {smartTimestamp(card.lastMessageAt)}
           </span>
         </div>
@@ -228,7 +228,7 @@ function ThreadRow({
         >
           {card.subject}
         </div>
-        <div className="text-[11.5px] text-slate-500 line-clamp-1 leading-relaxed">{card.preview}</div>
+        <div className="text-[11.5px] text-slate-400 line-clamp-1 leading-relaxed">{card.preview}</div>
         {(hasReminder || card.hasAttachment) && (
           <div className="mt-1.5 flex items-center gap-1.5">
             {hasReminder && (
@@ -238,7 +238,7 @@ function ThreadRow({
               </span>
             )}
             {card.hasAttachment && (
-              <span className="inline-flex items-center gap-1 text-[10px] text-slate-500">
+              <span className="inline-flex items-center gap-1 text-[10px] text-slate-400">
                 <I.Paperclip size={10} />
               </span>
             )}
@@ -273,7 +273,7 @@ function EmptyState({ filter }: { filter: "all" | "unread" }) {
         <I.Inbox size={18} />
       </div>
       <div className="text-[13px] font-medium text-slate-300 mb-1">All caught up</div>
-      <div className="text-[12px] text-slate-500 max-w-[220px] leading-relaxed">
+      <div className="text-[12px] text-slate-400 max-w-[220px] leading-relaxed">
         {filter === "unread"
           ? "No unread mail in this folder."
           : "Nothing here yet. New mail will appear automatically."}

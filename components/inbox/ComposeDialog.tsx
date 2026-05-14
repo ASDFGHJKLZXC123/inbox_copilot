@@ -114,7 +114,7 @@ export function ComposeDialog({ mode, initial, onClose, onSend, onError }: Compo
           </span>
           <button
             onClick={tryClose}
-            className="ml-auto text-slate-500 hover:text-slate-200"
+            className="ml-auto text-slate-400 hover:text-slate-200"
             aria-label="Close"
           >
             <I.X size={15} />
@@ -134,7 +134,7 @@ export function ComposeDialog({ mode, initial, onClose, onSend, onError }: Compo
             {!showCcBcc && (
               <button
                 onClick={() => setShowCcBcc(true)}
-                className="text-[11px] text-slate-500 hover:text-slate-300"
+                className="text-[11px] text-slate-400 hover:text-slate-300"
               >
                 Cc/Bcc
               </button>
@@ -192,10 +192,10 @@ export function ComposeDialog({ mode, initial, onClose, onSend, onError }: Compo
             {sending ? "Sending…" : "Send"}
           </button>
           <kbd>⌘</kbd>
-          <span className="text-[10.5px] text-slate-500 -ml-1">+</span>
+          <span className="text-[10.5px] text-slate-400 -ml-1">+</span>
           <kbd>↵</kbd>
-          <span className="text-[10.5px] text-slate-500">to send</span>
-          <div className="ml-auto flex items-center gap-1.5 text-slate-500">
+          <span className="text-[10.5px] text-slate-400">to send</span>
+          <div className="ml-auto flex items-center gap-1.5 text-slate-400">
             <button className="hover:text-slate-200 transition-colors p-1" title="Attach">
               <I.Paperclip size={13} />
             </button>
@@ -215,7 +215,7 @@ export function ComposeDialog({ mode, initial, onClose, onSend, onError }: Compo
 function FieldRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="h-10 px-4 flex items-center gap-3 border-b border-slate-800/60">
-      <span className="text-[11.5px] text-slate-500 w-12">{label}</span>
+      <span className="text-[11.5px] text-slate-400 w-12">{label}</span>
       {children}
     </div>
   );

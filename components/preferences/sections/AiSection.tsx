@@ -37,7 +37,7 @@ function ModelTagPill({ tag }: { tag: ModelTag }): JSX.Element {
 function KeyBadge({ keyState }: { keyState: PrefApiKey }): JSX.Element {
   if (!keyState.value) {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 h-5 rounded text-[10px] font-medium bg-slate-800 text-slate-500 border border-slate-700">
+      <span className="inline-flex items-center gap-1 px-1.5 h-5 rounded text-[10px] font-medium bg-slate-800 text-slate-400 border border-slate-700">
         No key
       </span>
     );
@@ -77,10 +77,10 @@ function ApiKeyInput({ provider, keyState, onPatch }: ApiKeyInputProps): JSX.Ele
     <div className="rounded-md bg-slate-950/60 border border-slate-800 p-3">
       <div className="flex items-center justify-between mb-2">
         <label className="text-[11px] font-medium text-slate-300 inline-flex items-center gap-1.5">
-          <Lock size={11} className="text-slate-500" />
+          <Lock size={11} className="text-slate-400" />
           API key
         </label>
-        <span className="text-[10.5px] text-slate-500 inline-flex items-center gap-1">
+        <span className="text-[10.5px] text-slate-400 inline-flex items-center gap-1">
           Get a key on {provider.docs}
         </span>
       </div>
@@ -100,7 +100,7 @@ function ApiKeyInput({ provider, keyState, onPatch }: ApiKeyInputProps): JSX.Ele
             type="button"
             onClick={() => setShow(!show)}
             aria-label={show ? "Hide key" : "Show key"}
-            className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded text-slate-500 hover:text-slate-200 hover:bg-slate-800 flex items-center justify-center transition-colors"
+            className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 flex items-center justify-center transition-colors"
           >
             {show ? "○" : "●"}
           </button>
@@ -217,14 +217,14 @@ function ProviderModelPicker({
                       </span>
                     )}
                   </div>
-                  <div className="text-[11px] text-slate-500 mt-0.5">
+                  <div className="text-[11px] text-slate-400 mt-0.5">
                     {p.models.length} model{p.models.length === 1 ? "" : "s"} · {p.docs}
                   </div>
                 </div>
                 <KeyBadge keyState={k} />
                 <ChevronDown
                   size={13}
-                  className={"text-slate-500 transition-transform " + (isExpanded ? "" : "-rotate-90")}
+                  className={"text-slate-400 transition-transform " + (isExpanded ? "" : "-rotate-90")}
                 />
               </button>
 
@@ -248,8 +248,8 @@ function ProviderModelPicker({
       </div>
 
       <div className="px-5 py-3.5 border-t border-slate-800 bg-slate-950/40 flex items-start gap-2.5">
-        <Shield size={13} className="text-slate-500 mt-0.5 flex-shrink-0" />
-        <div className="text-[11px] text-slate-500 leading-relaxed">
+        <Shield size={13} className="text-slate-400 mt-0.5 flex-shrink-0" />
+        <div className="text-[11px] text-slate-400 leading-relaxed">
           <span className="text-slate-300 font-medium">Local-only storage.</span> Keys are kept in
           this browser&apos;s storage and sent only to the matching provider&apos;s API.
         </div>
@@ -283,7 +283,7 @@ function ModelList({
     <div className="space-y-3">
       {groups.map((grp) => (
         <div key={grp.name} className="space-y-1.5">
-          <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 px-1">
+          <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 px-1">
             {grp.name}
           </div>
           {grp.items.map((m) => {
@@ -313,9 +313,9 @@ function ModelList({
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-[12.5px] font-semibold text-slate-100">{m.name}</span>
                     <ModelTagPill tag={m.tag} />
-                    <code className="text-[10px] text-slate-500 font-mono ml-auto">{fullId}</code>
+                    <code className="text-[10px] text-slate-400 font-mono ml-auto">{fullId}</code>
                   </div>
-                  <div className="mt-0.5 text-[11px] text-slate-500">{m.desc}</div>
+                  <div className="mt-0.5 text-[11px] text-slate-400">{m.desc}</div>
                 </div>
               </button>
             );

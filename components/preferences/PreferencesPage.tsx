@@ -159,7 +159,7 @@ export function PreferencesPage({
                   >
                     <s.Icon size={14} />
                     <span className="flex-1 text-left">{s.label}</span>
-                    {active && <ChevronRight size={12} className="text-slate-500" />}
+                    {active && <ChevronRight size={12} className="text-slate-400" />}
                   </button>
                 </li>
               );
@@ -171,7 +171,7 @@ export function PreferencesPage({
               <Sparkles size={12} className="text-sky-300" />
               <span className="font-medium text-slate-200">Pro tip</span>
             </div>
-            <p className="text-[11.5px] text-slate-500 leading-relaxed">
+            <p className="text-[11.5px] text-slate-400 leading-relaxed">
               Press <kbd>?</kbd> from anywhere to see every shortcut. Search supports{" "}
               <span className="font-mono text-slate-300">from:</span> and{" "}
               <span className="font-mono text-slate-300">has:attachment</span>.

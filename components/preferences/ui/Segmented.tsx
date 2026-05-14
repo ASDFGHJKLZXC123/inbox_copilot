@@ -30,7 +30,7 @@ export function Segmented<T extends string>({
           onClick={() => onChange(o.value)}
           className={
             "px-3 rounded text-[11.5px] font-medium transition-colors " +
-            (value === o.value ? "bg-slate-800 text-slate-100" : "text-slate-500 hover:text-slate-300")
+            (value === o.value ? "bg-slate-800 text-slate-100" : "text-slate-400 hover:text-slate-300")
           }
         >
           {o.label}

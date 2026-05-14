@@ -36,7 +36,7 @@ export function CardHeader({ title, desc, destructive }: CardHeaderProps): JSX.E
       >
         {title}
       </div>
-      {desc && <div className="mt-0.5 text-[11.5px] text-slate-500 leading-relaxed">{desc}</div>}
+      {desc && <div className="mt-0.5 text-[11.5px] text-slate-400 leading-relaxed">{desc}</div>}
     </div>
   );
 }

@@ -69,7 +69,7 @@ export function ClearCacheDialog({ open, onClose, onError }: ClearCacheDialogPro
         </div>
 
         <div className="px-5 pb-4">
-          <label className="text-[11px] uppercase tracking-wide text-slate-500 font-medium block mb-1.5">
+          <label className="text-[11px] uppercase tracking-wide text-slate-400 font-medium block mb-1.5">
             Type <span className="font-mono text-rose-300">delete</span> to confirm
           </label>
           <input

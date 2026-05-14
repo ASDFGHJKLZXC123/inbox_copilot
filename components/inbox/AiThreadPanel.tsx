@@ -134,12 +134,12 @@ export function AiThreadPanel({
           <I.Sparkles size={12} className="sparkle" />
         </div>
         <span className="text-[12.5px] font-semibold text-slate-100">Copilot</span>
-        <span className="text-[11.5px] text-slate-500">·</span>
+        <span className="text-[11.5px] text-slate-400">·</span>
         <span className="text-[11.5px] text-slate-400">Summarize, draft, revise</span>
         <span className="ml-auto" />
         <I.ChevronDown
           size={13}
-          className={"text-slate-500 transition-transform " + (open ? "" : "-rotate-90")}
+          className={"text-slate-400 transition-transform " + (open ? "" : "-rotate-90")}
         />
       </button>
 
@@ -192,7 +192,7 @@ export function AiThreadPanel({
             ))}
 
           {view === "idle" && (
-            <div className="px-1 py-1 text-[11.5px] text-slate-500 leading-relaxed">
+            <div className="px-1 py-1 text-[11.5px] text-slate-400 leading-relaxed">
               Pick an action above. Copilot reads only this thread; it never sees other mail.
             </div>
           )}
@@ -242,7 +242,7 @@ function ToneSelector({ value, onChange }: { value: Tone; onChange: (t: Tone) =>
           onClick={() => onChange(t)}
           className={
             "h-6 px-2 rounded text-[10.5px] font-medium capitalize transition-colors " +
-            (value === t ? "bg-slate-800 text-slate-100" : "text-slate-500 hover:text-slate-300")
+            (value === t ? "bg-slate-800 text-slate-100" : "text-slate-400 hover:text-slate-300")
           }
         >
           {t}
@@ -261,7 +261,7 @@ function ClarifyToggle({ value, onChange }: { value: boolean; onChange: (v: bool
         "h-6 px-2 inline-flex items-center gap-1.5 rounded-md text-[10.5px] font-medium border transition-colors " +
         (value
           ? "bg-sky-400/10 border-sky-400/30 text-sky-200"
-          : "bg-slate-900/80 border-slate-800 text-slate-500 hover:text-slate-300")
+          : "bg-slate-900/80 border-slate-800 text-slate-400 hover:text-slate-300")
       }
     >
       <span
@@ -339,12 +339,12 @@ function DraftResultBlock({
     <div className="rounded-md bg-slate-900/60 border border-slate-800 overflow-hidden">
       <div className="px-4 pt-3.5 pb-2 flex items-center gap-2">
         <SourceBadge meta={meta} />
-        <span className="ml-auto text-[10.5px] text-slate-500">Draft preview</span>
+        <span className="ml-auto text-[10.5px] text-slate-400">Draft preview</span>
       </div>
       <div className="px-4 pb-3">
-        <div className="text-[12px] text-slate-500 mb-1">Subject</div>
+        <div className="text-[12px] text-slate-400 mb-1">Subject</div>
         <div className="text-[13px] text-slate-100 font-medium mb-3">{draft.subject}</div>
-        <div className="text-[12px] text-slate-500 mb-1">Body</div>
+        <div className="text-[12px] text-slate-400 mb-1">Body</div>
         <div className="text-[13px] text-slate-200 whitespace-pre-wrap leading-[1.65] font-normal max-h-60 overflow-y-auto pr-2">
           {draft.body}
         </div>

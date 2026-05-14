@@ -149,7 +149,7 @@ export function EmailDetailPanel({
       <div className="h-14 px-4 flex items-center gap-1.5 border-b border-slate-800/80">
         <ToolbarButton icon={I.ChevronLeft} label="Previous" onClick={onPrev} disabled={position <= 1} />
         <ToolbarButton icon={I.ChevronRight} label="Next" onClick={onNext} disabled={position >= total} />
-        <span className="text-[11px] text-slate-500 tabular-nums mx-2">
+        <span className="text-[11px] text-slate-400 tabular-nums mx-2">
           {position} / {total}
         </span>
 
@@ -198,7 +198,7 @@ export function EmailDetailPanel({
                 Important
               </span>
             )}
-            <span className="text-[10.5px] text-slate-500 uppercase tracking-[0.08em] font-medium">
+            <span className="text-[10.5px] text-slate-400 uppercase tracking-[0.08em] font-medium">
               {card.labels
                 .filter((l) => !["IMPORTANT"].includes(l))
                 .map((l) => l.toLowerCase())
@@ -208,7 +208,7 @@ export function EmailDetailPanel({
           <h1 className="text-[20px] font-semibold text-slate-50 leading-tight tracking-tight">
             {card.subject}
           </h1>
-          <div className="mt-2 text-[11.5px] text-slate-500">
+          <div className="mt-2 text-[11.5px] text-slate-400">
             {card.participants.length} participants ·{" "}
             <span className="text-slate-400">{card.participants.map((p) => nameOf(p)).join(", ")}</span>
           </div>
@@ -301,7 +301,7 @@ function EmptyDetail() {
         <I.Inbox size={22} />
       </div>
       <h3 className="text-[15px] font-semibold text-slate-200 mb-1">Select a conversation</h3>
-      <p className="text-[12.5px] text-slate-500 max-w-[320px] leading-relaxed">
+      <p className="text-[12.5px] text-slate-400 max-w-[320px] leading-relaxed">
         Pick a thread on the left to read it. Use <kbd>J</kbd>/<kbd>K</kbd> to navigate,{" "}
         <kbd>R</kbd> to reply, <kbd>E</kbd> to archive.
       </p>

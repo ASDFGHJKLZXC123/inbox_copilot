@@ -50,7 +50,7 @@ export function ThemeSwatchLocked({ name, sample }: ThemeSwatchLockedProps): JSX
         ))}
       </div>
       <div className="flex items-center justify-between">
-        <span className="text-[12px] font-medium text-slate-500">{name}</span>
+        <span className="text-[12px] font-medium text-slate-400">{name}</span>
         <span className="text-[9.5px] uppercase tracking-wide text-slate-600">Soon</span>
       </div>
     </button>

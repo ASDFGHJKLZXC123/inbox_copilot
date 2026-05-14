@@ -66,7 +66,7 @@ export function LiveSyncPanel({
         </span>
         <span>{pill.label}</span>
         {lastSyncedAt && status !== "off" && (
-          <span className="text-slate-500 font-normal">· {smartTimestamp(lastSyncedAt)}</span>
+          <span className="text-slate-400 font-normal">· {smartTimestamp(lastSyncedAt)}</span>
         )}
       </button>
 
@@ -89,11 +89,11 @@ export function LiveSyncPanel({
             </div>
 
             <div className="px-3.5 py-2.5 border-b border-slate-800">
-              <div className="text-[10.5px] uppercase tracking-wide text-slate-500 font-medium mb-2">
+              <div className="text-[10.5px] uppercase tracking-wide text-slate-400 font-medium mb-2">
                 Subscriptions
               </div>
               {subscriptions.length === 0 ? (
-                <div className="text-[11.5px] text-slate-500 mb-2">No active subscription yet.</div>
+                <div className="text-[11.5px] text-slate-400 mb-2">No active subscription yet.</div>
               ) : (
                 <ul className="space-y-1.5">
                   {subscriptions.map((s) => (
@@ -108,7 +108,7 @@ export function LiveSyncPanel({
                         <div className="text-slate-200 truncate font-mono text-[11px]">
                           {s.externalId ?? s.email}
                         </div>
-                        <div className="text-slate-500">
+                        <div className="text-slate-400">
                           {s.status}
                           {s.expiresAt ? ` · expires ${smartTimestamp(s.expiresAt)}` : ""}
                         </div>

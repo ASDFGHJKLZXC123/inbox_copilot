@@ -528,6 +528,7 @@ export function InboxView({ preview }: InboxViewProps = {}) {
         setActiveNav={setActiveNav}
         session={session}
         folderCounts={folderCounts}
+        activeReminderCount={reminders.filter((r) => !r.completed).length}
         onCompose={() => openCompose()}
         onSignOut={handleSignOut}
         onClearCache={() => setShowClearCache(true)}

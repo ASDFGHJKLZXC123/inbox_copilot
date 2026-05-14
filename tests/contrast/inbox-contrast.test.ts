@@ -205,3 +205,74 @@ test.describe("WCAG AA color-contrast — inbox dark theme (via /dev/inbox-previ
     await auditContrast(page, "expanded thread detail panel");
   });
 });
+
+// ─── A11y: form-control labels + ARIA semantics (GH issue #7) ───────────────────
+
+/**
+ * Audits a fixed set of accessibility rules and throws with a readable summary
+ * if any node violates them. Scope is intentionally narrow:
+ * - `label`: every form control has an accessible name
+ * - `aria-roles`: ARIA roles are valid
+ * - `aria-valid-attr`: ARIA attributes are spelled correctly and valued correctly
+ *
+ * The inbox surface is the same /dev/inbox-preview the contrast suite uses, so
+ * the audit covers the Sidebar, ThreadListPanel, EmailDetailPanel, and the
+ * compose/reply paths once the user navigates to them.
+ */
+async function auditA11y(page: import("@playwright/test").Page, label: string) {
+  const results = await new AxeBuilder({ page })
+    .withRules(["label", "aria-roles", "aria-valid-attr"])
+    .analyze();
+
+  if (results.violations.length > 0) {
+    const summary = results.violations
+      .map((v) => {
+        const nodes = v.nodes
+          .map((n) => `    selector: ${n.target.join(", ")}\n    summary: ${n.failureSummary ?? "(no failure summary)"}`)
+          .join("\n");
+        return `[${v.id}] ${v.description}\n${nodes}`;
+      })
+      .join("\n\n");
+    throw new Error(
+      `${results.violations.length} a11y violation(s) [${label}] on ${BASE_URL}${INBOX_PATH}:\n\n${summary}`,
+    );
+  }
+
+  expect(results.violations).toHaveLength(0);
+}
+
+test.describe("axe a11y — form labels + ARIA semantics (via /dev/inbox-preview)", () => {
+  test("no label / aria-roles / aria-valid-attr violations on initial load", async ({ page }) => {
+    await gotoInbox(page);
+    await auditA11y(page, "default state");
+  });
+
+  test("no a11y violations on the compose dialog", async ({ page }) => {
+    await gotoInbox(page);
+    // Compose is reachable from the sidebar's Compose button.
+    const compose = page.getByRole("button", { name: "Compose" });
+    await compose.click();
+    await page.waitForSelector('[role="dialog"]', { timeout: 5_000 });
+    await page.waitForTimeout(200);
+    await auditA11y(page, "compose dialog open");
+  });
+
+  test("no a11y violations on the preferences page", async ({ page }) => {
+    // The preferences route renders the Row/Toggle/Slider/Segmented/ToneCards
+    // primitives covered by GH #7. Use the inbox-preview cookie route to land
+    // there; the preferences page itself doesn't need an auth gate when env
+    // NEXT_PUBLIC_ENABLE_DEV_PREVIEW is set (NextAuth session is mocked at
+    // request time, see /api/auth in dev).
+    const response = await page.goto(`${BASE_URL}/preferences`, {
+      waitUntil: "networkidle",
+      timeout: 30_000,
+    });
+    if (response && !response.ok() && response.status() !== 304) {
+      // Some envs gate /preferences behind auth even with the preview env on.
+      // Skip rather than fail in that case so the contrast suite still runs.
+      test.skip(true, `/preferences returned HTTP ${response.status()} — auth-gated`);
+      return;
+    }
+    await auditA11y(page, "preferences page");
+  });
+});

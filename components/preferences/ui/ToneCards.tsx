@@ -7,6 +7,8 @@ import type { Tone } from "@/lib/types-ui";
 export interface ToneCardsProps {
   value: Tone;
   onChange: (next: Tone) => void;
+  /** Id of the visible group label this tone picker is named by. */
+  "aria-labelledby"?: string;
 }
 
 interface ToneOption {
@@ -33,18 +35,24 @@ const TONES: ToneOption[] = [
   },
 ];
 
-export function ToneCards({ value, onChange }: ToneCardsProps): JSX.Element {
+export function ToneCards({ value, onChange, ...aria }: ToneCardsProps): JSX.Element {
   return (
-    <div className="grid grid-cols-3 gap-2.5">
+    <div
+      role="radiogroup"
+      aria-labelledby={aria["aria-labelledby"]}
+      className="grid grid-cols-3 gap-2.5"
+    >
       {TONES.map((t) => {
         const sel = value === t.value;
         return (
           <button
             type="button"
             key={t.value}
+            role="radio"
+            aria-checked={sel}
             onClick={() => onChange(t.value)}
             className={
-              "text-left p-3.5 rounded-lg border transition-all " +
+              "text-left p-3.5 rounded-lg border transition-all focus-ring " +
               (sel
                 ? "border-sky-400/50 bg-sky-400/5 ring-1 ring-sky-400/30"
                 : "border-slate-800 bg-slate-900/40 hover:border-slate-700")

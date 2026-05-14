@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 
 import * as I from "@/components/ui/icons";
 
@@ -25,6 +25,7 @@ export function ReplyComposer({
 }: ReplyComposerProps) {
   void onError; // present for parity; surface failures via parent
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const bodyId = useId();
 
   useEffect(() => {
     textareaRef.current?.focus({ preventScroll: true });
@@ -62,14 +63,18 @@ export function ReplyComposer({
           <I.X size={14} />
         </button>
       </div>
+      <label htmlFor={bodyId} className="sr-only">
+        Reply to {recipientLabel}
+      </label>
       <textarea
+        id={bodyId}
         ref={textareaRef}
         value={body}
         onChange={(e) => setBody(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="Write a reply…"
         rows={6}
-        className="w-full px-4 py-3 bg-transparent text-[13.5px] text-slate-100 placeholder:text-slate-600 leading-[1.7] resize-y focus:outline-none min-h-[120px] max-h-[400px]"
+        className="w-full px-4 py-3 bg-transparent text-[13.5px] text-slate-100 placeholder:text-slate-600 leading-[1.7] resize-y focus:outline-none focus:bg-slate-950/30 min-h-[120px] max-h-[400px] transition-colors"
         style={{ fontFeatureSettings: '"ss01"' }}
       />
       <div className="px-3 py-2.5 flex items-center gap-2 border-t border-slate-800/60 bg-slate-950/40">

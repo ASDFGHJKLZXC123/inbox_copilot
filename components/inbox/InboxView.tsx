@@ -292,14 +292,22 @@ export function InboxView({ preview }: InboxViewProps = {}) {
   // returned as a label-scoped slice. When a real session is present we POST;
   // when one is missing (dev preview, no provider creds yet) we fall back to
   // GET `api.getInbox` so the helper still works for Tier 2 verification.
+  //
+  // syncSeq guards against rapid nav clicks: if the user clicks sent then
+  // drafts before the sent response lands, the late sent response would
+  // otherwise overwrite the drafts slice in store. Drop responses whose seq
+  // no longer matches the latest request (same pattern as searchSeq).
+  const syncSeq = useFeatureSeqRef();
   const runSync = useCallback(
     async (label: NavId) => {
+      const req = syncSeq.next();
       setSyncing(true);
       try {
         const email = session?.user.email;
         const fresh = email
           ? await api.syncInbox({ provider: "google", email, label })
           : await api.getInbox();
+        if (!syncSeq.matches(req)) return;
         setStore(fresh);
         showToast({
           id: "sync",
@@ -309,13 +317,14 @@ export function InboxView({ preview }: InboxViewProps = {}) {
         });
         setLastSyncedAt(new Date().toISOString());
       } catch (err) {
+        if (!syncSeq.matches(req)) return;
         const message = err instanceof Error ? err.message : "Sync failed";
         showToast({ message, variant: "error" });
       } finally {
-        setSyncing(false);
+        if (syncSeq.matches(req)) setSyncing(false);
       }
     },
-    [session, showToast],
+    [session, showToast, syncSeq],
   );
 
   // Folder nav → provider sync. Defined after runSync so it can call it.
@@ -619,6 +628,16 @@ export function InboxView({ preview }: InboxViewProps = {}) {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    // Escape inside the search input clears the query. The
+                    // global Escape handler skips typing targets, so the
+                    // search-mode input has to handle this itself — same as
+                    // ThreadListPanel's input. Per GH issue #9 item 4.
+                    if (e.key === "Escape") {
+                      setSearchQuery("");
+                      e.currentTarget.blur();
+                    }
+                  }}
                   placeholder="Search mail"
                   autoFocus
                   className="w-full h-8 pl-8 pr-14 bg-slate-900 border border-slate-800 rounded-md text-[12.5px] text-slate-200 placeholder:text-slate-500 focus:border-slate-700 focus-ring"

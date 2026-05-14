@@ -36,9 +36,13 @@ const TONES: ToneOption[] = [
 ];
 
 export function ToneCards({ value, onChange, ...aria }: ToneCardsProps): JSX.Element {
+  // aria-pressed (toggle button pattern) instead of role="radiogroup" + role="radio"
+  // — radio-group semantics require arrow-key keyboard navigation per WAI-ARIA APG,
+  // which this UI does not implement. aria-pressed expresses the selected/unselected
+  // state without that contract. Issue #7 proposed either form as acceptable.
   return (
     <div
-      role="radiogroup"
+      role="group"
       aria-labelledby={aria["aria-labelledby"]}
       className="grid grid-cols-3 gap-2.5"
     >
@@ -48,8 +52,7 @@ export function ToneCards({ value, onChange, ...aria }: ToneCardsProps): JSX.Ele
           <button
             type="button"
             key={t.value}
-            role="radio"
-            aria-checked={sel}
+            aria-pressed={sel}
             onClick={() => onChange(t.value)}
             className={
               "text-left p-3.5 rounded-lg border transition-all focus-ring " +

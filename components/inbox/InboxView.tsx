@@ -133,10 +133,29 @@ export function InboxView({ preview }: InboxViewProps = {}) {
     return { inbox: inboxUnread } as Partial<Record<NavId, number>>;
   }, [allCards]);
 
-  // Folder filter (the prototype only seeds INBOX; sent/drafts/archive/trash are empty)
+  // Folder filter. After a nav-triggered runSync, the store holds the
+  // label-scoped slice the user just switched to (see handleNavChange and the
+  // POST /api/inbox/sync route, which returns only the synced label's
+  // threads/messages); this filter then narrows allCards to that folder's
+  // labels so the row count is accurate even if the initial GET seeded
+  // multiple folders. Per GH issue #9 item 1.
   const cards = useMemo(() => {
-    if (activeNav === "inbox") return allCards.filter((c) => c.labels.includes("INBOX"));
-    return [];
+    switch (activeNav) {
+      case "inbox":
+        return allCards.filter((c) => c.labels.includes("INBOX"));
+      case "sent":
+        return allCards.filter((c) => c.labels.includes("SENT"));
+      case "drafts":
+        return allCards.filter((c) => c.labels.includes("DRAFT"));
+      case "trash":
+        return allCards.filter((c) => c.labels.includes("TRASH"));
+      case "archive":
+        // Gmail archive = anything not in inbox/sent/drafts/trash/spam (matches
+        // the provider query in providers/adapters.ts:246).
+        return allCards.filter(
+          (c) => !["INBOX", "SENT", "DRAFT", "TRASH", "SPAM"].some((l) => c.labels.includes(l)),
+        );
+    }
   }, [allCards, activeNav]);
 
   // Search (debounced) — uses api.search
@@ -191,7 +210,17 @@ export function InboxView({ preview }: InboxViewProps = {}) {
 
   const isSearchMode = searchQuery.trim().length > 0;
 
-  const selectedCard = cards.find((c) => c.id === selectedThreadId) ?? cards[0] ?? null;
+  // When in search mode, the chosen result may be a thread outside the active
+  // folder (e.g. /inbox is the active folder but the result is in /sent).
+  // Look up the selected id in searchResults first so the detail panel can
+  // open it. Per GH issue #9 item 2.
+  const selectedCard =
+    (isSearchMode
+      ? searchResults.find((r) => r.thread.id === selectedThreadId)?.thread
+      : undefined) ??
+    cards.find((c) => c.id === selectedThreadId) ??
+    cards[0] ??
+    null;
   const threadMessages = useMemo(() => {
     if (!selectedCard) return [];
     return messages
@@ -263,14 +292,22 @@ export function InboxView({ preview }: InboxViewProps = {}) {
   // returned as a label-scoped slice. When a real session is present we POST;
   // when one is missing (dev preview, no provider creds yet) we fall back to
   // GET `api.getInbox` so the helper still works for Tier 2 verification.
+  //
+  // syncSeq guards against rapid nav clicks: if the user clicks sent then
+  // drafts before the sent response lands, the late sent response would
+  // otherwise overwrite the drafts slice in store. Drop responses whose seq
+  // no longer matches the latest request (same pattern as searchSeq).
+  const syncSeq = useFeatureSeqRef();
   const runSync = useCallback(
     async (label: NavId) => {
+      const req = syncSeq.next();
       setSyncing(true);
       try {
         const email = session?.user.email;
         const fresh = email
           ? await api.syncInbox({ provider: "google", email, label })
           : await api.getInbox();
+        if (!syncSeq.matches(req)) return;
         setStore(fresh);
         showToast({
           id: "sync",
@@ -280,13 +317,28 @@ export function InboxView({ preview }: InboxViewProps = {}) {
         });
         setLastSyncedAt(new Date().toISOString());
       } catch (err) {
+        if (!syncSeq.matches(req)) return;
         const message = err instanceof Error ? err.message : "Sync failed";
         showToast({ message, variant: "error" });
       } finally {
-        setSyncing(false);
+        if (syncSeq.matches(req)) setSyncing(false);
       }
     },
-    [session, showToast],
+    [session, showToast, syncSeq],
+  );
+
+  // Folder nav → provider sync. Defined after runSync so it can call it.
+  // Per GH issue #9 item 1: clicking a folder should pull the right slice
+  // from the provider, not just change local state.
+  const handleNavChange = useCallback(
+    (next: NavId) => {
+      if (next === activeNav) return;
+      setActiveNav(next);
+      setSelectedThreadId(null);
+      if (preview) return;
+      void runSync(next);
+    },
+    [activeNav, preview, runSync],
   );
 
   const onPrev = () => {
@@ -525,7 +577,7 @@ export function InboxView({ preview }: InboxViewProps = {}) {
     <div className="inbox-page h-screen w-screen flex bg-slate-950 text-slate-200">
       <Sidebar
         activeNav={activeNav}
-        setActiveNav={setActiveNav}
+        setActiveNav={handleNavChange}
         session={session}
         folderCounts={folderCounts}
         onCompose={() => openCompose()}
@@ -576,6 +628,16 @@ export function InboxView({ preview }: InboxViewProps = {}) {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    // Escape inside the search input clears the query. The
+                    // global Escape handler skips typing targets, so the
+                    // search-mode input has to handle this itself — same as
+                    // ThreadListPanel's input. Per GH issue #9 item 4.
+                    if (e.key === "Escape") {
+                      setSearchQuery("");
+                      e.currentTarget.blur();
+                    }
+                  }}
                   placeholder="Search mail"
                   autoFocus
                   className="w-full h-8 pl-8 pr-14 bg-slate-900 border border-slate-800 rounded-md text-[12.5px] text-slate-200 placeholder:text-slate-500 focus:border-slate-700 focus-ring"

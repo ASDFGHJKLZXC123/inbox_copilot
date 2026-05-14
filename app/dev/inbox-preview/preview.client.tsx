@@ -4,7 +4,7 @@ import type { SanitizedInboxStore } from "@/lib/types";
 import type { UiSession } from "@/lib/types-ui";
 import { InboxView } from "@/components/inbox/InboxView";
 
-// Synthetic store hand-built from Email Copilot/src/mockData.jsx shapes,
+// Synthetic store hand-built from .archive/email-copilot-mockup/src/mockData.jsx shapes,
 // trimmed to two threads/three messages so the screenshot stays focused.
 // Shapes mirror lib/types.ts so the same InboxView codepath that renders
 // against a real API response renders here.

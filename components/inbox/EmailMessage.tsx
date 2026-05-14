@@ -24,7 +24,7 @@ export interface EmailMessageProps {
 // Trusted-sender allowlist. In a real app this would persist; here it's per-tab,
 // seeded empty so real users don't get demo-mockup senders silently treated as
 // trusted in prod (the prior `["halcyon.io","kestrel.vc","latham.com"]` seed
-// came from Email Copilot/src/mockData.jsx and leaked through the port).
+// came from .archive/email-copilot-mockup/src/mockData.jsx and leaked through the port).
 const TRUSTED_SENDERS = new Set<string>();
 const TRUSTED_DOMAINS = new Set<string>();
 

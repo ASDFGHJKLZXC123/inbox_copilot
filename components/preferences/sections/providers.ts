@@ -1,4 +1,4 @@
-// Provider/model catalogue — ported from mockup `Email Copilot/src/PreferencesPage.jsx`
+// Provider/model catalogue — ported from mockup `.archive/email-copilot-mockup/src/PreferencesPage.jsx`
 // lines 265-435. Kept in a separate module so AiSection stays readable. The list
 // is the mockup's source of truth; the live app does not currently route
 // requests to these providers (TODO(prefs-backend)).

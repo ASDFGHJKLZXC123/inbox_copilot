@@ -1,5 +1,5 @@
 // Preferences state — flat shape matching mockup DEFAULT_PREFS at
-// `Email Copilot/src/PreferencesPage.jsx` line 14-46. Do NOT nest into
+// `.archive/email-copilot-mockup/src/PreferencesPage.jsx` line 14-46. Do NOT nest into
 // ai/notifications/appearance/privacy groups; section components reach into
 // prefs directly with flat keys. See FRONTEND_PORT_PLAN.md Appendix A.6.
 //

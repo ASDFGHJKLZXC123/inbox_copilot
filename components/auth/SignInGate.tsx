@@ -4,7 +4,7 @@ import type { JSX } from "react";
 
 import { Check, Google, Lightning } from "@/components/ui/icons";
 
-// Visual port of Email Copilot/src/SignInGate.jsx (40 LOC).
+// Visual port of .archive/email-copilot-mockup/src/SignInGate.jsx (40 LOC).
 // Prop interface per FRONTEND_PORT_PLAN.md Appendix A.5.
 // All 5 visual elements from Appendix B.4 are present:
 //   1) background grid, 2) brand chip, 3) headline + paragraph,

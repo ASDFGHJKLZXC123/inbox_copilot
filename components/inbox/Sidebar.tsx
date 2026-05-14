@@ -10,6 +10,8 @@ export interface SidebarProps {
   setActiveNav: (id: NavId) => void;
   session: UiSession;
   folderCounts: Partial<Record<NavId, number>>;
+  /** Count of active (uncompleted) reminders. Rendered as a badge next to "Follow-ups". */
+  activeReminderCount: number;
   onCompose: () => void;
   onSignOut: () => void;
   onClearCache: () => void;
@@ -45,6 +47,7 @@ export function Sidebar({
   setActiveNav,
   session,
   folderCounts,
+  activeReminderCount,
   onCompose,
   onSignOut,
   onClearCache,
@@ -123,6 +126,11 @@ export function Sidebar({
             <button className="group w-full h-8 px-2 rounded-md flex items-center gap-2.5 text-[13px] text-slate-400 hover:bg-slate-800/40 hover:text-slate-200 transition-colors">
               <I.Bell size={15} />
               <span className="flex-1 text-left">Follow-ups</span>
+              {activeReminderCount > 0 && (
+                <span className="text-[11px] font-medium text-slate-300 tabular-nums">
+                  {activeReminderCount}
+                </span>
+              )}
             </button>
           </li>
           <li>

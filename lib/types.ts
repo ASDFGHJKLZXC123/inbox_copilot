@@ -58,6 +58,7 @@ export interface Message {
   subject: string;
   from: string;
   to: string[];
+  cc?: string[];
   snippet: string;
   bodyPreview: string;
   bodyHtml?: string;

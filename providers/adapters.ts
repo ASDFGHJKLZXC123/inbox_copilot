@@ -57,6 +57,7 @@ interface GraphMessage {
   subject?: string;
   from?: GraphRecipient;
   toRecipients?: GraphRecipient[];
+  ccRecipients?: GraphRecipient[];
   receivedDateTime?: string;
   bodyPreview?: string;
   isRead?: boolean;
@@ -291,6 +292,10 @@ async function syncGmail(
           .split(",")
           .map((value) => normalizeEmail(value))
           .filter(Boolean);
+        const cc = (gmailHeader(gmailMessage, "Cc") ?? "")
+          .split(",")
+          .map((value) => normalizeEmail(value))
+          .filter(Boolean);
         const receivedAt = gmailMessage.internalDate
           ? new Date(Number(gmailMessage.internalDate)).toISOString()
           : new Date().toISOString();
@@ -303,6 +308,7 @@ async function syncGmail(
           subject,
           from,
           to,
+          cc: cc.length ? cc : undefined,
           snippet: gmailMessage.snippet ?? "",
           bodyPreview: gmailMessage.snippet ?? "",
           bodyHtml: body.html,
@@ -363,7 +369,7 @@ async function syncMicrosoft(accessToken: string, fallbackEmail?: string): Promi
     [
       "https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages",
       "?$top=25",
-      "&$select=id,conversationId,subject,from,toRecipients,receivedDateTime,bodyPreview,isRead,categories",
+      "&$select=id,conversationId,subject,from,toRecipients,ccRecipients,receivedDateTime,bodyPreview,isRead,categories",
       "&$orderby=receivedDateTime DESC"
     ].join(""),
     accessToken
@@ -381,6 +387,12 @@ async function syncMicrosoft(accessToken: string, fallbackEmail?: string): Promi
       to: (graphMessage.toRecipients ?? [])
         .map((recipient) => recipient.emailAddress?.address ?? "")
         .filter(Boolean),
+      cc: (() => {
+        const list = (graphMessage.ccRecipients ?? [])
+          .map((recipient) => recipient.emailAddress?.address ?? "")
+          .filter(Boolean);
+        return list.length ? list : undefined;
+      })(),
       snippet: graphMessage.bodyPreview ?? "",
       bodyPreview: graphMessage.bodyPreview ?? "",
       receivedAt: graphMessage.receivedDateTime ?? new Date().toISOString(),

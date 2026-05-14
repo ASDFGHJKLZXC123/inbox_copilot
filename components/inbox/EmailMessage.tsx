@@ -102,6 +102,12 @@ export function EmailMessage({ message, expanded, onToggle, isFirst }: EmailMess
           </div>
           <div className="mt-0.5 text-[11.5px] text-slate-500 flex items-center gap-1.5">
             <span>to {message.to.map((t) => nameOf(t)).join(", ")}</span>
+            {message.cc && message.cc.length > 0 && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span>cc: {message.cc.map((c) => nameOf(c)).join(", ")}</span>
+              </>
+            )}
           </div>
           {!expanded && (
             <div className="mt-1 text-[12.5px] text-slate-400 line-clamp-1">{message.snippet}</div>

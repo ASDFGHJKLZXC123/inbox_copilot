@@ -91,6 +91,15 @@ export function ThreadListPanel({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              // A.7 line 770: Escape while in search clears the query. The
+              // global Escape handler doesn't fire here because the input is
+              // an isTypingTarget. Per GH issue #9 item 4.
+              if (e.key === "Escape") {
+                setSearchQuery("");
+                e.currentTarget.blur();
+              }
+            }}
             placeholder="Search mail"
             className="w-full h-8 pl-8 pr-14 bg-slate-900 border border-slate-800 rounded-md text-[12.5px] text-slate-200 placeholder:text-slate-500 focus:border-slate-700 focus:bg-slate-900 focus-ring transition-colors"
           />

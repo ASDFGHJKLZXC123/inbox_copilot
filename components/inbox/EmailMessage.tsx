@@ -219,6 +219,11 @@ function HtmlEnvelope({ html, blockImages }: { html: string; blockImages: boolea
           referrerPolicy="no-referrer"
           className="block w-full bg-white"
           style={{ height: height + "px", border: 0 }}
+          // Blur on focus so iframe focus capture doesn't steal global keymap
+          // shortcuts (r, e, #, c, j/k, /). The iframe still receives mouse
+          // clicks, wheel scroll, and selection — only keyboard focus is
+          // bounced back to the parent document. Per GH issue #9 item 5.
+          onFocus={() => iframeRef.current?.blur()}
         />
       </div>
       <div className="mt-2 px-1 flex items-center gap-1.5 text-[10.5px] text-slate-600">

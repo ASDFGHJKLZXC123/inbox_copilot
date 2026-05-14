@@ -133,10 +133,29 @@ export function InboxView({ preview }: InboxViewProps = {}) {
     return { inbox: inboxUnread } as Partial<Record<NavId, number>>;
   }, [allCards]);
 
-  // Folder filter (the prototype only seeds INBOX; sent/drafts/archive/trash are empty)
+  // Folder filter. After a nav-triggered runSync, the store holds the
+  // label-scoped slice the user just switched to (see handleNavChange and the
+  // POST /api/inbox/sync route, which returns only the synced label's
+  // threads/messages); this filter then narrows allCards to that folder's
+  // labels so the row count is accurate even if the initial GET seeded
+  // multiple folders. Per GH issue #9 item 1.
   const cards = useMemo(() => {
-    if (activeNav === "inbox") return allCards.filter((c) => c.labels.includes("INBOX"));
-    return [];
+    switch (activeNav) {
+      case "inbox":
+        return allCards.filter((c) => c.labels.includes("INBOX"));
+      case "sent":
+        return allCards.filter((c) => c.labels.includes("SENT"));
+      case "drafts":
+        return allCards.filter((c) => c.labels.includes("DRAFT"));
+      case "trash":
+        return allCards.filter((c) => c.labels.includes("TRASH"));
+      case "archive":
+        // Gmail archive = anything not in inbox/sent/drafts/trash/spam (matches
+        // the provider query in providers/adapters.ts:246).
+        return allCards.filter(
+          (c) => !["INBOX", "SENT", "DRAFT", "TRASH", "SPAM"].some((l) => c.labels.includes(l)),
+        );
+    }
   }, [allCards, activeNav]);
 
   // Search (debounced) — uses api.search
@@ -191,7 +210,17 @@ export function InboxView({ preview }: InboxViewProps = {}) {
 
   const isSearchMode = searchQuery.trim().length > 0;
 
-  const selectedCard = cards.find((c) => c.id === selectedThreadId) ?? cards[0] ?? null;
+  // When in search mode, the chosen result may be a thread outside the active
+  // folder (e.g. /inbox is the active folder but the result is in /sent).
+  // Look up the selected id in searchResults first so the detail panel can
+  // open it. Per GH issue #9 item 2.
+  const selectedCard =
+    (isSearchMode
+      ? searchResults.find((r) => r.thread.id === selectedThreadId)?.thread
+      : undefined) ??
+    cards.find((c) => c.id === selectedThreadId) ??
+    cards[0] ??
+    null;
   const threadMessages = useMemo(() => {
     if (!selectedCard) return [];
     return messages
@@ -287,6 +316,20 @@ export function InboxView({ preview }: InboxViewProps = {}) {
       }
     },
     [session, showToast],
+  );
+
+  // Folder nav → provider sync. Defined after runSync so it can call it.
+  // Per GH issue #9 item 1: clicking a folder should pull the right slice
+  // from the provider, not just change local state.
+  const handleNavChange = useCallback(
+    (next: NavId) => {
+      if (next === activeNav) return;
+      setActiveNav(next);
+      setSelectedThreadId(null);
+      if (preview) return;
+      void runSync(next);
+    },
+    [activeNav, preview, runSync],
   );
 
   const onPrev = () => {
@@ -525,7 +568,7 @@ export function InboxView({ preview }: InboxViewProps = {}) {
     <div className="inbox-page h-screen w-screen flex bg-slate-950 text-slate-200">
       <Sidebar
         activeNav={activeNav}
-        setActiveNav={setActiveNav}
+        setActiveNav={handleNavChange}
         session={session}
         folderCounts={folderCounts}
         onCompose={() => openCompose()}

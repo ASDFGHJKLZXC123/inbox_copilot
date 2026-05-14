@@ -37,7 +37,7 @@ function ModelTagPill({ tag }: { tag: ModelTag }): JSX.Element {
 function KeyBadge({ keyState }: { keyState: PrefApiKey }): JSX.Element {
   if (!keyState.value) {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 h-5 rounded text-[10px] font-medium bg-slate-800 text-slate-500 border border-slate-700">
+      <span className="inline-flex items-center gap-1 px-1.5 h-5 rounded text-[10px] font-medium bg-slate-800 text-slate-400 border border-slate-700">
         No key
       </span>
     );

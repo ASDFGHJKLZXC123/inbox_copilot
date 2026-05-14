@@ -31,7 +31,7 @@ function ScopeRow({ label, desc, status, last }: ScopeRowProps): JSX.Element {
       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
       <div className="flex-1 min-w-0">
         <code className="text-[12px] font-mono text-slate-200">{label}</code>
-        <div className="text-[11px] text-slate-500 mt-0.5">{desc}</div>
+        <div className="text-[11px] text-slate-400 mt-0.5">{desc}</div>
       </div>
       <span className="inline-flex items-center gap-1 px-1.5 h-4 rounded text-[9.5px] font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 uppercase tracking-wide">
         {status}
@@ -68,7 +68,7 @@ export function AccountSection({ session, onSignOut }: AccountSectionProps): JSX
                 <Dot size={10} className="text-emerald-400" />
                 Connected
               </span>
-              <span className="text-slate-500">
+              <span className="text-slate-400">
                 Provider · <span className="text-slate-300">Google</span>
               </span>
             </div>
@@ -120,7 +120,7 @@ export function AccountSection({ session, onSignOut }: AccountSectionProps): JSX
             <div className="text-[13px] text-slate-200 font-medium">
               Disconnect Google account
             </div>
-            <div className="text-[11.5px] text-slate-500 mt-0.5">
+            <div className="text-[11.5px] text-slate-400 mt-0.5">
               Revokes our tokens and removes the live sync subscription.
             </div>
           </div>

@@ -36,7 +36,7 @@ export default function PreferencesRoute(): JSX.Element {
 
   if (status === "loading") {
     return (
-      <div className="preferences-page h-screen w-screen flex items-center justify-center text-[12.5px] text-slate-500">
+      <div className="preferences-page h-screen w-screen flex items-center justify-center text-[12.5px] text-slate-400">
         Loading preferences…
       </div>
     );

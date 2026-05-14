@@ -61,11 +61,11 @@ export function Sidebar({
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-[13px] font-semibold text-slate-100 leading-tight">Copilot</div>
-          <div className="text-[10.5px] text-slate-500 font-medium tracking-wide uppercase">Inbox</div>
+          <div className="text-[10.5px] text-slate-400 font-medium tracking-wide uppercase">Inbox</div>
         </div>
         <button
           onClick={onOpenPreferences}
-          className="text-slate-500 hover:text-slate-200 transition-colors"
+          className="text-slate-400 hover:text-slate-200 transition-colors"
           title="Preferences"
           aria-label="Preferences"
         >
@@ -85,7 +85,7 @@ export function Sidebar({
 
       {/* Nav */}
       <nav className="px-2 pt-4 flex-1">
-        <div className="px-2 pb-1.5 text-[10.5px] uppercase tracking-[0.08em] text-slate-500 font-medium">
+        <div className="px-2 pb-1.5 text-[10.5px] uppercase tracking-[0.08em] text-slate-400 font-medium">
           Mailboxes
         </div>
         <ul className="space-y-0.5">
@@ -115,7 +115,7 @@ export function Sidebar({
           })}
         </ul>
 
-        <div className="mt-6 px-2 pb-1.5 text-[10.5px] uppercase tracking-[0.08em] text-slate-500 font-medium">
+        <div className="mt-6 px-2 pb-1.5 text-[10.5px] uppercase tracking-[0.08em] text-slate-400 font-medium">
           Copilot
         </div>
         <ul className="space-y-0.5">
@@ -162,11 +162,11 @@ export function Sidebar({
             <div className="text-[12.5px] text-slate-100 font-medium truncate leading-tight">
               {session.user.name}
             </div>
-            <div className="text-[11px] text-slate-500 truncate">{session.user.email}</div>
+            <div className="text-[11px] text-slate-400 truncate">{session.user.email}</div>
           </div>
           <I.ChevronUp
             size={13}
-            className={"text-slate-500 transition-transform " + (accountMenuOpen ? "" : "rotate-180")}
+            className={"text-slate-400 transition-transform " + (accountMenuOpen ? "" : "rotate-180")}
           />
         </button>
       </div>
@@ -193,7 +193,7 @@ function AccountMenu({
       <div className="absolute bottom-full left-3 right-3 mb-2 z-30 bg-slate-900 border border-slate-800 rounded-lg shadow-2xl shadow-black/40 overflow-hidden">
         <div className="px-3 py-2.5 border-b border-slate-800">
           <div className="text-[12px] text-slate-300 font-medium truncate">{session.user.name}</div>
-          <div className="text-[11px] text-slate-500 truncate">{session.user.email}</div>
+          <div className="text-[11px] text-slate-400 truncate">{session.user.email}</div>
           <div className="mt-1.5 flex items-center gap-1.5 text-[10.5px] text-emerald-300">
             <I.Dot size={10} className="text-emerald-400" />
             <span>Connected to Google</span>

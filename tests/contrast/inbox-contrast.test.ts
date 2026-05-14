@@ -33,30 +33,6 @@ const PORT = process.env.PORT ?? "3000";
 const BASE_URL = `http://localhost:${PORT}`;
 const INBOX_PATH = "/dev/inbox-preview";
 
-// Known AA close-misses inherited from the mockup design system: text-slate-500
-// (#64748b) on the inbox's dark surfaces (slate-950 #020617 → 4.23:1, slate-900
-// #0f172a → 3.75:1). Both fall under AA normal-text 4.5:1 but pass AA large-text
-// 3.0:1, and the mockup uses the same colors — changing them in this port would
-// violate B.3 visual tolerance. Tracked for a future a11y-polish pass: GH issue
-// #6. The filter below allows these specific pairings through; any other
-// contrast violation still fails the test.
-const SLATE_500_FG = "#64748b";
-const KNOWN_DARK_BGS = new Set(["#020617", "#0f172a"]); // slate-950, slate-900
-
-function getNodeColors(
-  node: { any?: Array<{ data?: { fgColor?: string; bgColor?: string } }>; all?: Array<{ data?: { fgColor?: string; bgColor?: string } }> }
-): { fg: string | undefined; bg: string | undefined } {
-  return {
-    fg: node.any?.[0]?.data?.fgColor ?? node.all?.[0]?.data?.fgColor,
-    bg: node.any?.[0]?.data?.bgColor ?? node.all?.[0]?.data?.bgColor,
-  };
-}
-
-function isKnownCloseMiss(node: Parameters<typeof getNodeColors>[0]): boolean {
-  const { fg, bg } = getNodeColors(node);
-  return fg === SLATE_500_FG && bg !== undefined && KNOWN_DARK_BGS.has(bg);
-}
-
 // ─── Helper ────────────────────────────────────────────────────────────────────
 
 /**
@@ -96,11 +72,7 @@ async function auditContrast(
     .withRules(["color-contrast"])
     .analyze();
 
-  // Strip the documented mockup-inherited slate-500/slate-950 close-miss
-  // (GH issue #6). Any violation with nodes outside that pairing still fails.
-  const violations = rawResults.violations
-    .map((v) => ({ ...v, nodes: v.nodes.filter((n) => !isKnownCloseMiss(n)) }))
-    .filter((v) => v.nodes.length > 0);
+  const violations = rawResults.violations;
 
   // Build a readable summary of every violation before asserting so that
   // a failure in CI prints the full details, not just "expected 0 === 0".

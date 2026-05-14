@@ -27,7 +27,7 @@ export function InboxSearchResults({
   if (pending) {
     return (
       <div className="px-4 py-3 space-y-3">
-        <div className="text-[11px] text-slate-500 flex items-center gap-2">
+        <div className="text-[11px] text-slate-400 flex items-center gap-2">
           <I.Refresh size={11} className="spin" />
           Searching local mailbox…
         </div>
@@ -49,7 +49,7 @@ export function InboxSearchResults({
           <I.Search size={16} />
         </div>
         <div className="text-[12.5px] font-medium text-slate-300 mb-1">No matches</div>
-        <div className="text-[11.5px] text-slate-500 max-w-[260px] mx-auto leading-relaxed">
+        <div className="text-[11.5px] text-slate-400 max-w-[260px] mx-auto leading-relaxed">
           No matches in your synced mail. Try refreshing or expanding sync.
         </div>
       </div>
@@ -58,7 +58,7 @@ export function InboxSearchResults({
 
   return (
     <div>
-      <div className="px-4 py-2 text-[10.5px] uppercase tracking-wide text-slate-500 font-medium border-b border-slate-900/80">
+      <div className="px-4 py-2 text-[10.5px] uppercase tracking-wide text-slate-400 font-medium border-b border-slate-900/80">
         {results.length} {results.length === 1 ? "result" : "results"} · local mailbox
       </div>
       <ul>
@@ -122,7 +122,7 @@ function SearchResultRow({
             {nameOf(thread.participants[0] ?? "")}
           </span>
           <span
-            className="text-[10px] tabular-nums text-slate-500 px-1.5 h-4 rounded bg-slate-800 flex items-center"
+            className="text-[10px] tabular-nums text-slate-400 px-1.5 h-4 rounded bg-slate-800 flex items-center"
             title="Matches in thread"
           >
             {score}
@@ -131,7 +131,7 @@ function SearchResultRow({
         <div className="text-[12.5px] text-slate-100 mb-0.5 truncate">
           {highlight(thread.subject, query)}
         </div>
-        <div className="text-[11.5px] text-slate-500 line-clamp-1">
+        <div className="text-[11.5px] text-slate-400 line-clamp-1">
           {highlight(thread.preview || "", query)}
         </div>
       </button>

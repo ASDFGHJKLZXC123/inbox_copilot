@@ -51,12 +51,12 @@ export function ReplyComposer({
   return (
     <div className="mx-6 mb-6 rounded-lg border border-slate-800 bg-slate-900/40 overflow-hidden">
       <div className="px-4 pt-3 pb-2 flex items-center gap-2 border-b border-slate-800/60">
-        <I.Reply size={12} className="text-slate-500" />
-        <span className="text-[11.5px] text-slate-500">Reply to</span>
+        <I.Reply size={12} className="text-slate-400" />
+        <span className="text-[11.5px] text-slate-400">Reply to</span>
         <span className="text-[12px] text-slate-200 font-medium">{recipientLabel}</span>
         <button
           onClick={tryDiscard}
-          className="ml-auto text-slate-500 hover:text-slate-300"
+          className="ml-auto text-slate-400 hover:text-slate-300"
           aria-label="Discard reply"
         >
           <I.X size={14} />
@@ -82,10 +82,10 @@ export function ReplyComposer({
           {sending ? "Sending…" : "Send"}
         </button>
         <kbd>⌘</kbd>
-        <span className="text-[10.5px] text-slate-500 -ml-1">+</span>
+        <span className="text-[10.5px] text-slate-400 -ml-1">+</span>
         <kbd>↵</kbd>
-        <span className="text-[10.5px] text-slate-500">to send</span>
-        <div className="ml-auto flex items-center gap-1.5 text-slate-500">
+        <span className="text-[10.5px] text-slate-400">to send</span>
+        <div className="ml-auto flex items-center gap-1.5 text-slate-400">
           <button className="hover:text-slate-200 transition-colors p-1" title="Attach">
             <I.Paperclip size={13} />
           </button>

@@ -46,7 +46,7 @@ export function SignInGate({ onSignIn, buildLabel }: SignInGateProps): JSX.Eleme
           <Google size={18} />
           Continue with Google
         </button>
-        <div className="mt-6 text-[11.5px] text-slate-500 flex items-center justify-center gap-1.5">
+        <div className="mt-6 text-[11.5px] text-slate-400 flex items-center justify-center gap-1.5">
           <Check size={11} className="text-emerald-400" />
           Read &amp; send scopes only. We never index attachments.
         </div>

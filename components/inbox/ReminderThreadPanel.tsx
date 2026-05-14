@@ -115,7 +115,7 @@ export function ReminderThreadPanel({
             {/* List */}
             <div className="max-h-60 overflow-y-auto">
               {threadReminders.length === 0 ? (
-                <div className="px-4 py-5 text-center text-[12px] text-slate-500">
+                <div className="px-4 py-5 text-center text-[12px] text-slate-400">
                   No follow-ups scheduled on this thread.
                 </div>
               ) : (
@@ -141,7 +141,7 @@ export function ReminderThreadPanel({
                         <div
                           className={
                             "text-[12px] leading-snug " +
-                            (r.completed ? "text-slate-500 line-through" : "text-slate-100")
+                            (r.completed ? "text-slate-400 line-through" : "text-slate-100")
                           }
                         >
                           {r.reason}
@@ -166,7 +166,7 @@ export function ReminderThreadPanel({
 
             {/* Add form */}
             <div className="px-3.5 py-3 border-t border-slate-800 bg-slate-950/60 space-y-2">
-              <div className="text-[10.5px] uppercase tracking-wide text-slate-500 font-medium">
+              <div className="text-[10.5px] uppercase tracking-wide text-slate-400 font-medium">
                 Add follow-up
               </div>
               <input

@@ -67,7 +67,7 @@ export function ToneCards({ value, onChange }: ToneCardsProps): JSX.Element {
                 {sel && <span className="w-1 h-1 rounded-full bg-slate-950" />}
               </span>
             </div>
-            <div className="text-[11px] text-slate-500 leading-relaxed italic">{t.preview}</div>
+            <div className="text-[11px] text-slate-400 leading-relaxed italic">{t.preview}</div>
           </button>
         );
       })}

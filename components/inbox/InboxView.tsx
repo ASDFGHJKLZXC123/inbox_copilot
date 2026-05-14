@@ -497,7 +497,7 @@ export function InboxView({ preview }: InboxViewProps = {}) {
   if (!session) {
     // Authenticated session not yet available; keep the layout dark to avoid flash.
     return (
-      <div className="inbox-page h-screen w-screen flex items-center justify-center bg-slate-950 text-slate-500 text-[12px]">
+      <div className="inbox-page h-screen w-screen flex items-center justify-center bg-slate-950 text-slate-400 text-[12px]">
         Loading…
       </div>
     );
@@ -505,7 +505,7 @@ export function InboxView({ preview }: InboxViewProps = {}) {
 
   if (!store) {
     return (
-      <div className="inbox-page h-screen w-screen flex items-center justify-center bg-slate-950 text-slate-500 text-[12px]">
+      <div className="inbox-page h-screen w-screen flex items-center justify-center bg-slate-950 text-slate-400 text-[12px]">
         {storeError ?? "Loading inbox…"}
       </div>
     );
@@ -560,7 +560,7 @@ export function InboxView({ preview }: InboxViewProps = {}) {
               <h2 className="text-[14px] font-semibold text-slate-100">Search</h2>
               <button
                 onClick={() => setSearchQuery("")}
-                className="ml-auto text-[11.5px] text-slate-500 hover:text-slate-200"
+                className="ml-auto text-[11.5px] text-slate-400 hover:text-slate-200"
               >
                 Clear
               </button>
@@ -569,7 +569,7 @@ export function InboxView({ preview }: InboxViewProps = {}) {
               <div className="relative">
                 <I.Search
                   size={13}
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500"
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
                 />
                 <input
                   ref={searchInputRef}
@@ -578,7 +578,7 @@ export function InboxView({ preview }: InboxViewProps = {}) {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search mail"
                   autoFocus
-                  className="w-full h-8 pl-8 pr-14 bg-slate-900 border border-slate-800 rounded-md text-[12.5px] text-slate-200 placeholder:text-slate-500 focus:border-slate-700 focus-ring"
+                  className="w-full h-8 pl-8 pr-14 bg-slate-900 border border-slate-800 rounded-md text-[12.5px] text-slate-200 placeholder:text-slate-400 focus:border-slate-700 focus-ring"
                 />
                 <kbd className="absolute right-2 top-1/2 -translate-y-1/2">esc</kbd>
               </div>
@@ -589,7 +589,7 @@ export function InboxView({ preview }: InboxViewProps = {}) {
                 <span className="h-6 px-2.5 rounded-full bg-slate-900/50 text-slate-600 border border-slate-800/60 text-[11.5px] font-medium flex items-center">
                   Unread
                 </span>
-                <span className="ml-auto text-[10.5px] text-slate-500 italic">Search active</span>
+                <span className="ml-auto text-[10.5px] text-slate-400 italic">Search active</span>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto">
@@ -612,7 +612,7 @@ export function InboxView({ preview }: InboxViewProps = {}) {
       <div className="flex-1 min-w-0 min-h-0 flex flex-col">
         {/* Top status bar */}
         <div className="h-9 px-4 flex items-center gap-2 border-b border-slate-800/80 bg-slate-950">
-          <span className="text-[11px] text-slate-500">
+          <span className="text-[11px] text-slate-400">
             <span className="text-slate-400 font-medium">{session.user.email}</span>
             <span className="mx-1.5 text-slate-700">/</span>
             <span className="capitalize">{activeNav}</span>

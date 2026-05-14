@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import type { ComposeMode } from "@/lib/types-ui";
 import * as I from "@/components/ui/icons";
@@ -36,6 +36,14 @@ export function ComposeDialog({ mode, initial, onClose, onSend, onError }: Compo
   const [showCcBcc, setShowCcBcc] = useState(false);
   const [subject, setSubject] = useState(initial?.subject ?? "");
   const [body, setBody] = useState(initial?.body ?? "");
+  // Per-field ids so the rendered FieldRow labels can target real inputs via
+  // htmlFor. useId returns a stable id-per-mount that's unique even when two
+  // ComposeDialog instances mount at once.
+  const toId = useId();
+  const ccId = useId();
+  const bccId = useId();
+  const subjectId = useId();
+  const bodyId = useId();
   const [sending, setSending] = useState(false);
   const dialogRef = useRef<HTMLDivElement | null>(null);
 
@@ -122,8 +130,9 @@ export function ComposeDialog({ mode, initial, onClose, onSend, onError }: Compo
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          <FieldRow label="To">
+          <FieldRow htmlFor={toId} label="To">
             <input
+              id={toId}
               name="to"
               type="text"
               value={to}
@@ -134,7 +143,7 @@ export function ComposeDialog({ mode, initial, onClose, onSend, onError }: Compo
             {!showCcBcc && (
               <button
                 onClick={() => setShowCcBcc(true)}
-                className="text-[11px] text-slate-500 hover:text-slate-300"
+                className="text-[11px] text-slate-500 hover:text-slate-300 focus-ring rounded"
               >
                 Cc/Bcc
               </button>
@@ -142,16 +151,18 @@ export function ComposeDialog({ mode, initial, onClose, onSend, onError }: Compo
           </FieldRow>
           {showCcBcc && (
             <>
-              <FieldRow label="Cc">
+              <FieldRow htmlFor={ccId} label="Cc">
                 <input
+                  id={ccId}
                   type="text"
                   value={cc}
                   onChange={(e) => setCc(e.target.value)}
                   className="flex-1 bg-transparent text-[13px] text-slate-100 placeholder:text-slate-600 focus:outline-none"
                 />
               </FieldRow>
-              <FieldRow label="Bcc">
+              <FieldRow htmlFor={bccId} label="Bcc">
                 <input
+                  id={bccId}
                   type="text"
                   value={bcc}
                   onChange={(e) => setBcc(e.target.value)}
@@ -160,20 +171,25 @@ export function ComposeDialog({ mode, initial, onClose, onSend, onError }: Compo
               </FieldRow>
             </>
           )}
-          <FieldRow label="Subject">
+          <FieldRow htmlFor={subjectId} label="Subject">
             <input
+              id={subjectId}
               type="text"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               className="flex-1 bg-transparent text-[13px] text-slate-100 placeholder:text-slate-600 focus:outline-none"
             />
           </FieldRow>
+          <label htmlFor={bodyId} className="sr-only">
+            Message body
+          </label>
           <textarea
+            id={bodyId}
             value={body}
             onChange={(e) => setBody(e.target.value)}
             placeholder="Write your message…"
             rows={12}
-            className="w-full px-4 py-3.5 bg-transparent text-[13.5px] text-slate-100 placeholder:text-slate-600 leading-[1.7] resize-y focus:outline-none min-h-[240px]"
+            className="w-full px-4 py-3.5 bg-transparent text-[13.5px] text-slate-100 placeholder:text-slate-600 leading-[1.7] resize-y focus:outline-none focus:bg-slate-950/30 min-h-[240px]"
             style={{ fontFeatureSettings: '"ss01"' }}
           />
         </div>
@@ -212,10 +228,22 @@ export function ComposeDialog({ mode, initial, onClose, onSend, onError }: Compo
   );
 }
 
-function FieldRow({ label, children }: { label: string; children: ReactNode }) {
+function FieldRow({
+  htmlFor,
+  label,
+  children,
+}: {
+  htmlFor: string;
+  label: string;
+  children: ReactNode;
+}) {
+  // focus-within lights the row so keyboard users see which field is active,
+  // since the inputs themselves are transparent and have focus:outline-none.
   return (
-    <div className="h-10 px-4 flex items-center gap-3 border-b border-slate-800/60">
-      <span className="text-[11.5px] text-slate-500 w-12">{label}</span>
+    <div className="h-10 px-4 flex items-center gap-3 border-b border-slate-800/60 focus-within:bg-slate-950/40 transition-colors">
+      <label htmlFor={htmlFor} className="text-[11.5px] text-slate-500 w-12 cursor-text">
+        {label}
+      </label>
       {children}
     </div>
   );

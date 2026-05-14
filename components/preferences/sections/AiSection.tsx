@@ -110,7 +110,7 @@ function ApiKeyInput({ provider, keyState, onPatch }: ApiKeyInputProps): JSX.Ele
           type="button"
           disabled
           title="API key verification ships with the backend (TODO)"
-          className="h-9 px-3 rounded-md text-[12px] font-semibold bg-slate-800 text-slate-400 cursor-not-allowed"
+          className="h-9 px-3 rounded-md text-[12px] font-semibold bg-slate-800 text-slate-500 cursor-not-allowed"
         >
           Verify
         </button>
